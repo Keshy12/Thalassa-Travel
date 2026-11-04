@@ -1,0 +1,111 @@
+---
+const steps = [
+  { title: 'Choose your journey', text: 'Pick one of our itineraries or tell us what you dream of, and we shape a route around your dates.' },
+  { title: 'We arrange everything', text: 'Hotels, ferries, transfers and tickets, with each site visited at its quietest hour.' },
+  { title: 'Meet your guide', text: 'On day one your guide welcomes the group and fits your AR device. Nothing to install.' },
+  { title: 'Travel through time', text: 'Explore each site twice: as it is today, and as it was when the stories were written.' },
+];
+const pad = (n: number) => String(n).padStart(2, '0');
+---
+
+<section class="section how" id="how">
+  <div class="container">
+    <header class="section-head" data-reveal>
+      <span class="eyebrow">How it works</span>
+      <h2>From first idea to the first temple</h2>
+    </header>
+    <ol class="how__steps">
+      {
+        steps.map((s, i) => (
+          <li class="how__step" data-reveal style={`--reveal-delay:${i * 110}`}>
+            <span class="how__num">{pad(i + 1)}</span>
+            <h3>{s.title}</h3>
+            <p>{s.text}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  .how {
+    background: var(--blue-50);
+  }
+
+  .how__steps {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(24px, 3vw, 44px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+  }
+
+  .how__steps::before {
+    content: '';
+    position: absolute;
+    top: 33px;
+    left: 34px;
+    right: 34px;
+    height: 0;
+    border-top: 2px dashed var(--blue-200);
+  }
+
+  .how__step {
+    position: relative;
+    display: grid;
+    align-content: start;
+    gap: 12px;
+  }
+
+  .how__num {
+    display: grid;
+    width: 68px;
+    height: 68px;
+    margin-bottom: 14px;
+    place-items: center;
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    background: var(--paper);
+    color: var(--blue-700);
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    box-shadow: 0 0 0 8px var(--blue-50);
+  }
+
+  .how__step:last-child .how__num {
+    border-color: var(--sun-500);
+    background: var(--sun-500);
+    color: var(--blue-900);
+  }
+
+  .how__step h3 {
+    font-size: var(--step-2);
+  }
+
+  .how__step p {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 900px) {
+    .how__steps {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      row-gap: 48px;
+    }
+
+    .how__steps::before {
+      display: none;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .how__steps {
+      grid-template-columns: 1fr;
+      row-gap: 36px;
+    }
+  }
+</style>

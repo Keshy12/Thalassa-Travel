@@ -1,0 +1,20 @@
+{
+  "zoom": 8,
+  "tile": 256,
+  "bbox": {
+    "west": 17.6,
+    "east": 31,
+    "south": 33.6,
+    "north": 42.6
+  },
+  "pixels": {
+    "x0": 35971,
+    "y0": 24180,
+    "width": 2441,
+    "height": 2088
+  },
+  "kmPerPx": 0.4812077962333186,
+  "elevMax": 3000,
+  "depthMax": 5000,
+  "sdfRange": 24
+}

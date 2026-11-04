@@ -1,0 +1,157 @@
+---
+import Icon from './Icon.astro';
+
+const quotes = [
+  {
+    text: 'Standing in front of the Parthenon and suddenly seeing it painted, with its sculptures back in place, is something I will never forget.',
+    name: 'Anna K.',
+    trip: 'Classical Mainland',
+  },
+  {
+    text: 'Small group, a guide who knew every stone, and every ferry and transfer simply worked. We only had to enjoy it.',
+    name: 'Mark & Julia T.',
+    trip: 'Aegean Islands',
+  },
+  {
+    text: 'Our kids walked through Knossos wide-eyed. The myths finally made sense to them, and honestly to us too.',
+    name: 'Sofia R.',
+    trip: 'The Grand Odyssey',
+  },
+];
+---
+
+<section class="section stories" aria-labelledby="stories-title">
+  <div class="container">
+    <header class="section-head section-head--center" data-reveal>
+      <span class="eyebrow">Traveller stories</span>
+      <h2 id="stories-title">Remembered long after the tan fades</h2>
+    </header>
+    <ul class="stories__grid">
+      {
+        quotes.map((q, i) => (
+          <li data-reveal style={`--reveal-delay:${i * 120}`}>
+            <figure class="story">
+              <div class="story__stars" aria-label="5 out of 5">
+                {Array.from({ length: 5 }, () => (
+                  <Icon name="star" size={16} />
+                ))}
+              </div>
+              <blockquote>
+                <p>{q.text}</p>
+              </blockquote>
+              <figcaption>
+                <span class="story__avatar" aria-hidden="true">
+                  {q.name.charAt(0)}
+                </span>
+                <span>
+                  <strong>{q.name}</strong>
+                  <span>{q.trip}</span>
+                </span>
+              </figcaption>
+            </figure>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .stories {
+    background: var(--paper);
+  }
+
+  .stories__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(20px, 2.6vw, 34px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .stories__grid > li {
+    display: flex;
+  }
+
+  .story {
+    position: relative;
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: 22px;
+    margin: 0;
+    padding: 34px 30px 30px;
+    border-radius: var(--radius-l);
+    background: var(--white);
+    box-shadow: var(--shadow-1);
+  }
+
+  .story::before {
+    content: '\201C';
+    position: absolute;
+    top: 6px;
+    right: 26px;
+    color: var(--blue-100);
+    font-family: var(--font-display);
+    font-size: 7rem;
+    line-height: 1;
+  }
+
+  .story__stars {
+    display: flex;
+    gap: 3px;
+    color: var(--sun-500);
+  }
+
+  .story__stars :global(svg) {
+    fill: currentColor;
+  }
+
+  .story blockquote {
+    position: relative;
+    margin: 0;
+    color: var(--blue-900);
+    font-family: var(--font-display);
+    font-size: 1.28rem;
+    line-height: 1.45;
+  }
+
+  .story figcaption {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: auto;
+    font-size: 0.85rem;
+  }
+
+  .story figcaption > span:last-child {
+    display: grid;
+    color: var(--ink-mute);
+  }
+
+  .story strong {
+    color: var(--blue-900);
+    font-weight: 650;
+  }
+
+  .story__avatar {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--blue-700);
+    color: var(--white);
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+  }
+
+  @media (max-width: 960px) {
+    .stories__grid {
+      grid-template-columns: 1fr;
+      max-width: 620px;
+      margin-inline: auto;
+    }
+  }
+</style>

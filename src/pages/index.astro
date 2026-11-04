@@ -1,0 +1,34 @@
+---
+import Base from '../layouts/Base.astro';
+import Nav from '../components/Nav.astro';
+import Hero from '../components/Hero.astro';
+import Highlights from '../components/Highlights.astro';
+import Destinations from '../components/Destinations.astro';
+import ArGuide from '../components/ArGuide.astro';
+import Journeys from '../components/Journeys.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import Testimonials from '../components/Testimonials.astro';
+import Faq from '../components/Faq.astro';
+import Contact from '../components/Contact.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Base>
+  <Nav />
+  <main id="main">
+    <Hero />
+    <Highlights />
+    <Destinations />
+    <ArGuide />
+    <Journeys />
+    <HowItWorks />
+    <Testimonials />
+    <Faq />
+    <Contact />
+  </main>
+  <Footer />
+</Base>
+
+<script>
+  import '../scripts/reveal';
+</script>

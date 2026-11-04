@@ -1,0 +1,165 @@
+---
+import { site } from '../data/site';
+import Icon from './Icon.astro';
+
+const faqs = [
+  {
+    q: 'Do I need any experience with AR or technology?',
+    a: 'Not at all. Your guide sets up the device on the first day and shows you how it works in a couple of minutes. You can take it off whenever you like.',
+  },
+  {
+    q: 'Can I use the AR device with glasses?',
+    a: 'Yes. The device is designed to be worn comfortably over most prescription glasses.',
+  },
+  {
+    q: 'How large are the groups?',
+    a: 'Our groups have a maximum of 12 travellers, and The Grand Odyssey is limited to 10, so everyone can hear the guide and nobody waits long at a viewpoint.',
+  },
+  {
+    q: 'What is included in the price?',
+    a: 'Accommodation, daily breakfast, all transfers and ferries in the itinerary, entrance tickets, a licensed local guide and the AR device for the whole trip. Flights to and from Greece are not included.',
+  },
+  {
+    q: 'Can you plan a private or tailor-made trip?',
+    a: 'Yes. Any of our journeys can run privately for families or friends, and we are happy to build a route around your dates and interests.',
+  },
+  {
+    q: 'What happens if I need to cancel?',
+    a: 'You can cancel free of charge up to 60 days before departure. After that, a sliding scale applies, which we explain clearly before you book.',
+  },
+];
+---
+
+<section class="section faq" id="faq">
+  <div class="container faq__grid">
+    <header class="section-head faq__head" data-reveal>
+      <span class="eyebrow">FAQ</span>
+      <h2>Good questions, honest answers</h2>
+      <p>Can't find what you are looking for? Write to us and a real person will reply within one working day.</p>
+      <a class="faq__mail" href={`mailto:${site.email}`}>
+        <Icon name="mail" size={20} />
+        {site.email}
+      </a>
+    </header>
+    <div class="faq__list" data-reveal>
+      {
+        faqs.map((f, i) => (
+          <details class="faq__item" open={i === 0}>
+            <summary>
+              {f.q}
+              <span class="faq__icon" aria-hidden="true">
+                <Icon name="plus" size={18} />
+              </span>
+            </summary>
+            <p>{f.a}</p>
+          </details>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .faq {
+    background: var(--cream);
+  }
+
+  .faq__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    align-items: start;
+    gap: clamp(40px, 6vw, 96px);
+  }
+
+  .faq__head {
+    position: sticky;
+    top: 120px;
+    margin-bottom: 0;
+  }
+
+  .faq__mail {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    color: var(--blue-700);
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .faq__mail:hover {
+    color: var(--sun-700);
+  }
+
+  .faq__list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .faq__item {
+    border-radius: var(--radius-m);
+    background: var(--paper);
+    box-shadow: inset 0 0 0 1px var(--line);
+    transition: box-shadow 0.3s;
+  }
+
+  .faq__item[open] {
+    box-shadow:
+      inset 0 0 0 1px var(--line-strong),
+      var(--shadow-1);
+  }
+
+  .faq__item summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 22px 24px;
+    color: var(--blue-900);
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    line-height: 1.3;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .faq__item summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .faq__icon {
+    display: grid;
+    flex: none;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--blue-50);
+    color: var(--blue-700);
+    transition:
+      transform 0.4s var(--ease-out),
+      background-color 0.3s;
+  }
+
+  .faq__item[open] .faq__icon {
+    background: var(--sun-500);
+    color: var(--blue-900);
+    transform: rotate(45deg);
+  }
+
+  .faq__item p {
+    padding: 0 24px 24px;
+    color: var(--ink-soft);
+    max-width: 60ch;
+  }
+
+  @media (max-width: 900px) {
+    .faq__grid {
+      grid-template-columns: 1fr;
+    }
+
+    .faq__head {
+      position: static;
+    }
+  }
+</style>

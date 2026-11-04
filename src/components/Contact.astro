@@ -1,0 +1,299 @@
+---
+import { journeys } from '../data/journeys';
+import { site } from '../data/site';
+import Icon from './Icon.astro';
+
+const months = ['April', 'May', 'June', 'July', 'August', 'September', 'October'];
+---
+
+<section class="section contact" id="contact">
+  <div class="meander contact__meander" aria-hidden="true"></div>
+  <div class="container contact__grid">
+    <div class="contact__intro" data-reveal>
+      <span class="eyebrow contact__eyebrow">Plan your trip</span>
+      <h2>Your Greek story starts here</h2>
+      <p>
+        Tell us when you would like to travel and what you are curious about. We will reply within one working day with
+        dates, availability and a few ideas of our own.
+      </p>
+      <ul class="contact__details">
+        <li>
+          <span><Icon name="mail" size={20} /></span>
+          <a href={`mailto:${site.email}`}>{site.email}</a>
+        </li>
+        <li>
+          <span><Icon name="phone" size={20} /></span>
+          <a href={`tel:${site.phone.replace(/\s/g, '')}`}>{site.phone}</a>
+        </li>
+        <li>
+          <span><Icon name="pin" size={20} /></span>
+          {site.address}
+        </li>
+      </ul>
+    </div>
+
+    <form class="contact__form" data-contact-form data-reveal novalidate>
+      <div class="field-row">
+        <label class="field">
+          <span>Name</span>
+          <input type="text" name="name" autocomplete="name" required />
+        </label>
+        <label class="field">
+          <span>Email</span>
+          <input type="email" name="email" autocomplete="email" required />
+        </label>
+      </div>
+      <div class="field-row">
+        <label class="field">
+          <span>Journey</span>
+          <select name="journey" id="contact-journey">
+            {journeys.map((j) => <option value={j.id}>{j.name}</option>)}
+            <option value="custom">Something tailor-made</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Preferred month</span>
+          <select name="month">
+            {months.map((m) => <option>{m}</option>)}
+          </select>
+        </label>
+      </div>
+      <label class="field">
+        <span>Travellers</span>
+        <input type="number" name="travellers" min="1" max="12" value="2" inputmode="numeric" />
+      </label>
+      <label class="field">
+        <span>Anything we should know? <em>(optional)</em></span>
+        <textarea name="message" rows="4"></textarea>
+      </label>
+      <label class="check">
+        <input type="checkbox" name="consent" required />
+        <span>I agree that Thalassa Travel may contact me about my enquiry.</span>
+      </label>
+      <button class="btn btn--primary contact__submit" type="submit">
+        Send enquiry
+        <Icon name="arrow" size={18} />
+      </button>
+      <p class="contact__status" role="status" aria-live="polite" data-form-status></p>
+    </form>
+  </div>
+</section>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('[data-contact-form]');
+  const status = document.querySelector<HTMLElement>('[data-form-status]');
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!form.checkValidity()) {
+      form.classList.add('was-validated');
+      form.querySelector<HTMLElement>(':invalid')?.focus();
+      if (status) status.textContent = 'Please fill in your name, a valid email and accept the consent.';
+      return;
+    }
+    form.classList.remove('was-validated');
+    form.classList.add('is-sent');
+    if (status) status.textContent = 'Thank you! We will get back to you within one working day.';
+    form.reset();
+  });
+</script>
+
+<style>
+  .contact {
+    overflow: hidden;
+    background:
+      radial-gradient(70% 80% at 0% 100%, rgb(242 193 78 / 0.18) 0%, transparent 55%),
+      linear-gradient(160deg, var(--blue-700) 0%, var(--blue-800) 100%);
+    color: var(--white);
+  }
+
+  .contact__meander {
+    position: absolute;
+    inset: 28px 0 auto;
+    opacity: 0.45;
+  }
+
+  .contact__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: center;
+    gap: clamp(40px, 6vw, 96px);
+  }
+
+  .contact__intro {
+    display: grid;
+    gap: 20px;
+  }
+
+  .contact__eyebrow {
+    color: var(--sun-300);
+  }
+
+  .contact h2 {
+    color: var(--white);
+    font-size: var(--step-4);
+  }
+
+  .contact__intro > p {
+    color: rgb(255 255 255 / 0.8);
+    font-size: var(--step-1);
+  }
+
+  .contact__details {
+    display: grid;
+    gap: 14px;
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .contact__details li {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-weight: 550;
+  }
+
+  .contact__details li > span {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 0.1);
+    color: var(--sun-500);
+  }
+
+  .contact__details a {
+    text-decoration: none;
+  }
+
+  .contact__details a:hover {
+    text-decoration: underline;
+  }
+
+  .contact__form {
+    display: grid;
+    gap: 16px;
+    padding: clamp(24px, 3.4vw, 40px);
+    border-radius: var(--radius-l);
+    background: var(--paper);
+    box-shadow: 0 40px 90px -40px rgb(0 0 0 / 0.6);
+    color: var(--ink);
+  }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .field {
+    display: grid;
+    gap: 7px;
+  }
+
+  .field > span {
+    color: var(--blue-900);
+    font-size: 0.82rem;
+    font-weight: 650;
+  }
+
+  .field em {
+    color: var(--ink-mute);
+    font-style: normal;
+    font-weight: 500;
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    width: 100%;
+    min-height: 50px;
+    padding: 12px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    background: var(--white);
+    font-size: 0.95rem;
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
+  }
+
+  .field textarea {
+    resize: vertical;
+  }
+
+  .field select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23005384' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-position: right 14px center;
+    background-repeat: no-repeat;
+    padding-right: 38px;
+  }
+
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus {
+    border-color: var(--blue-700);
+    box-shadow: 0 0 0 4px rgb(0 83 132 / 0.12);
+    outline: none;
+  }
+
+  .was-validated :invalid {
+    border-color: #b3261e;
+  }
+
+  .check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  .check input {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin: 1px 0 0;
+    accent-color: var(--blue-700);
+  }
+
+  .was-validated .check input:invalid {
+    outline: 2px solid #b3261e;
+    outline-offset: 2px;
+  }
+
+  .contact__submit {
+    justify-self: start;
+    margin-top: 4px;
+  }
+
+  .contact__status {
+    min-height: 1.5em;
+    color: var(--blue-700);
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .was-validated .contact__status {
+    color: #b3261e;
+  }
+
+  @media (max-width: 960px) {
+    .contact__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .field-row {
+      grid-template-columns: 1fr;
+    }
+
+    .contact__submit {
+      justify-self: stretch;
+    }
+  }
+</style>

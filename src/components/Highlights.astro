@@ -1,0 +1,83 @@
+---
+import Icon from './Icon.astro';
+
+const items = [
+  { icon: 'users', title: 'Small groups', text: 'Never more than 12 travellers, so every site feels personal.' },
+  { icon: 'compass', title: 'Local expert guides', text: 'Licensed archaeologists and historians who grew up here.' },
+  { icon: 'glasses', title: 'AR device included', text: 'See temples, agoras and palaces as they stood in their prime.' },
+  { icon: 'ship', title: 'Everything arranged', text: 'Hotels, ferries, transfers and tickets, timed around the crowds.' },
+] as const;
+---
+
+<section class="highlights" aria-label="Why travel with Thalassa">
+  <div class="container highlights__grid">
+    {
+      items.map((item, i) => (
+        <article class="highlight" data-reveal style={`--reveal-delay:${i * 90}`}>
+          <span class="highlight__icon">
+            <Icon name={item.icon} size={26} />
+          </span>
+          <h3>{item.title}</h3>
+          <p>{item.text}</p>
+        </article>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .highlights {
+    position: relative;
+    z-index: 2;
+    margin-top: -1px;
+    padding-block: clamp(56px, 7vw, 88px);
+    background: var(--paper);
+  }
+
+  .highlights__grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(20px, 3vw, 40px);
+  }
+
+  .highlight {
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+  }
+
+  .highlight__icon {
+    display: grid;
+    width: 52px;
+    height: 52px;
+    margin-bottom: 8px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--blue-50);
+    color: var(--blue-700);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  .highlight h3 {
+    font-size: var(--step-2);
+  }
+
+  .highlight p {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 900px) {
+    .highlights__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 520px) {
+    .highlights__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

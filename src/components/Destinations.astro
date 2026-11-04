@@ -1,0 +1,208 @@
+---
+import { destinations } from '../data/destinations';
+import Icon from './Icon.astro';
+
+const pad = (n: number) => String(n).padStart(2, '0');
+---
+
+<section class="section destinations" id="destinations">
+  <div class="container">
+    <header class="section-head destinations__head" data-reveal>
+      <span class="eyebrow">Destinations</span>
+      <h2>Six places, one unbroken story</h2>
+      <p>
+        From the marble of the Acropolis to the knights' walls of Rhodes, each stop is chosen for what it reveals about
+        Greece, and timed for the hours when it is at its best.
+      </p>
+    </header>
+
+    <ul class="destinations__grid">
+      {
+        destinations.map((d, i) => (
+          <li class="dest-item" id={`destination-${d.id}`} data-reveal style={`--reveal-delay:${(i % 3) * 110}`}>
+            <article class="dest">
+            <div class="dest__media">
+              <img src={d.photos[0].src} alt={d.photos[0].alt} width="1200" height="900" loading="lazy" decoding="async" />
+              <span class="dest__num">{pad(i + 1)}</span>
+            </div>
+            <div class="dest__body">
+              <p class="dest__region">{d.region}</p>
+              <h3>{d.name}</h3>
+              <p class="dest__tagline">{d.tagline}</p>
+              <p class="dest__text">{d.description}</p>
+              <ul class="dest__tags">
+                {d.highlights.map((h) => (
+                  <li>{h}</li>
+                ))}
+              </ul>
+              <button class="dest__map" type="button" data-show-on-map={d.id}>
+                <Icon name="map" size={18} />
+                Show on the map
+              </button>
+            </div>
+            </article>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-show-on-map]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('thalassa:goto', { detail: btn.dataset.showOnMap }));
+    }),
+  );
+</script>
+
+<style>
+  .destinations {
+    background: var(--cream);
+  }
+
+  .destinations__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(20px, 2.6vw, 34px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dest-item {
+    display: flex;
+  }
+
+  .dest {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: var(--radius-l);
+    background: var(--paper);
+    box-shadow: var(--shadow-1);
+    transition:
+      transform 0.5s var(--ease-out),
+      box-shadow 0.5s var(--ease-out);
+  }
+
+  .dest:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-2);
+  }
+
+  .dest__media {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 4 / 3;
+  }
+
+  .dest__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 1.2s var(--ease-out);
+  }
+
+  .dest:hover .dest__media img {
+    transform: scale(1.05);
+  }
+
+  .dest__num {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    display: grid;
+    width: 46px;
+    height: 46px;
+    place-items: center;
+    border-radius: 50%;
+    background: rgb(250 247 242 / 0.92);
+    color: var(--blue-700);
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    backdrop-filter: blur(6px);
+  }
+
+  .dest__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 10px;
+    padding: 26px 26px 28px;
+  }
+
+  .dest__region {
+    color: var(--sun-700);
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .dest h3 {
+    font-size: var(--step-3);
+  }
+
+  .dest__tagline {
+    color: var(--blue-700);
+    font-family: var(--font-display);
+    font-size: 1.12rem;
+    line-height: 1.35;
+  }
+
+  .dest__text {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  .dest__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dest__tags li {
+    padding: 5px 11px;
+    border-radius: var(--radius-pill);
+    background: var(--blue-50);
+    color: var(--blue-800);
+    font-size: 0.76rem;
+    font-weight: 600;
+  }
+
+  .dest__map {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 8px;
+    margin-top: auto;
+    padding: 14px 0 0;
+    border: 0;
+    background: none;
+    color: var(--blue-700);
+    font-size: 0.9rem;
+    font-weight: 650;
+    transition: color 0.25s;
+  }
+
+  .dest__map:hover {
+    color: var(--sun-700);
+  }
+
+  @media (max-width: 1000px) {
+    .destinations__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 620px) {
+    .destinations__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

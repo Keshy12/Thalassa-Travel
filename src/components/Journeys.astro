@@ -1,0 +1,349 @@
+---
+import { destinations } from '../data/destinations';
+import { journeys } from '../data/journeys';
+import outline from '../data/greece-outline.json';
+import Icon from './Icon.astro';
+
+const WORLD = 256 * 2 ** 8;
+const toOutline = (lon: number, lat: number) => {
+  const s = Math.sin((lat * Math.PI) / 180);
+  const x = ((lon + 180) / 360) * WORLD;
+  const y = (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * WORLD;
+  return [(x - outline.projection.originX) * outline.projection.scale, (y - outline.projection.originY) * outline.projection.scale];
+};
+const byId = Object.fromEntries(destinations.map((d) => [d.id, d]));
+const routePath = (ids: string[]) =>
+  ids
+    .map((id, i) => {
+      const [x, y] = toOutline(byId[id].lon, byId[id].lat);
+      return `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join('');
+const euro = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+---
+
+<section class="section journeys" id="journeys">
+  <svg class="journeys__defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <path id="greece-land" d={outline.d} vector-effect="non-scaling-stroke"></path>
+    </defs>
+  </svg>
+  <div class="container">
+    <header class="section-head section-head--center" data-reveal>
+      <span class="eyebrow">Journeys</span>
+      <h2>Choose your chapter of Greece</h2>
+      <p>Three itineraries, each led by a local guide and paced so you have time to linger. All can be tailored to your dates.</p>
+    </header>
+
+    <ul class="journeys__grid">
+      {
+        journeys.map((j, i) => (
+          <li class="journey-item" data-reveal style={`--reveal-delay:${i * 120}`}>
+            <article class:list={['journey', { 'journey--featured': j.badge }]}>
+              <div class="journey__media">
+                <img src={j.image.src} alt={j.image.alt} width="1200" height="900" loading="lazy" decoding="async" />
+                {j.badge && <span class="journey__badge">{j.badge}</span>}
+              </div>
+              <div class="journey__body">
+                <div class="journey__top">
+                  <div>
+                    <h3>{j.name}</h3>
+                    <p class="journey__route">{j.route.map((id) => byId[id].name).join(' · ')}</p>
+                  </div>
+                  <svg class="journey__map" viewBox={outline.viewBox} role="img" aria-label={`Route: ${j.route.map((id) => byId[id].name).join(', ')}`}>
+                    <use class="journey__land" href="#greece-land" />
+                    <path class="journey__line" d={routePath(j.route)} vector-effect="non-scaling-stroke" />
+                    {j.route.map((id) => {
+                      const [x, y] = toOutline(byId[id].lon, byId[id].lat);
+                      return <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r="34" vector-effect="non-scaling-stroke" />;
+                    })}
+                  </svg>
+                </div>
+                <p class="journey__summary">{j.summary}</p>
+                <ul class="journey__meta">
+                  <li>
+                    <Icon name="calendar" size={18} />
+                    {j.days} days
+                  </li>
+                  <li>
+                    <Icon name="users" size={18} />
+                    Max {j.groupSize} guests
+                  </li>
+                  <li>
+                    <Icon name="glasses" size={18} />
+                    AR device
+                  </li>
+                </ul>
+                <div class="journey__foot">
+                  <p class="journey__price">
+                    <span>from</span>
+                    <strong>{euro.format(j.priceFrom)}</strong>
+                    <span>per person</span>
+                  </p>
+                  <a class:list={['btn', j.badge ? 'btn--primary' : 'btn--outline']} href="#contact" data-journey={j.id}>
+                    Request
+                    <Icon name="arrow" size={18} />
+                  </a>
+                </div>
+              </div>
+            </article>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll<HTMLAnchorElement>('[data-journey]').forEach((a) =>
+    a.addEventListener('click', () => {
+      const select = document.querySelector<HTMLSelectElement>('#contact-journey');
+      if (select && a.dataset.journey) select.value = a.dataset.journey;
+    }),
+  );
+</script>
+
+<style>
+  .journeys {
+    background: var(--paper);
+  }
+
+  .journeys__defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+
+  .journeys__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: clamp(20px, 2.6vw, 34px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .journey-item {
+    display: flex;
+  }
+
+  .journey {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--white);
+    transition:
+      transform 0.5s var(--ease-out),
+      box-shadow 0.5s var(--ease-out);
+  }
+
+  .journey:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-2);
+  }
+
+  .journey--featured {
+    border-color: transparent;
+    background: var(--blue-700);
+    color: var(--white);
+    box-shadow: var(--shadow-2);
+  }
+
+  .journey__media {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+  }
+
+  .journey__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 1.2s var(--ease-out);
+  }
+
+  .journey:hover .journey__media img {
+    transform: scale(1.05);
+  }
+
+  .journey__badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    background: var(--sun-500);
+    color: var(--blue-900);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+
+  .journey__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 16px;
+    padding: 26px;
+  }
+
+  .journey__top {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .journey h3 {
+    font-size: var(--step-2);
+  }
+
+  .journey--featured h3 {
+    color: var(--white);
+  }
+
+  .journey__route {
+    margin-top: 6px;
+    color: var(--sun-700);
+    font-size: 0.8rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+  }
+
+  .journey--featured .journey__route {
+    color: var(--sun-300);
+  }
+
+  .journey__map {
+    flex: none;
+    width: 104px;
+    height: auto;
+    margin-top: -4px;
+  }
+
+  .journey__land {
+    fill: var(--blue-200);
+    stroke: var(--blue-300);
+    stroke-width: 0.6;
+  }
+
+  .journey__line {
+    fill: none;
+    stroke: var(--blue-700);
+    stroke-width: 1.6;
+    stroke-dasharray: 3 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .journey__map circle {
+    fill: var(--sun-500);
+    stroke: var(--blue-700);
+    stroke-width: 1.4;
+  }
+
+  .journey--featured .journey__land {
+    fill: rgb(255 255 255 / 0.14);
+    stroke: rgb(255 255 255 / 0.35);
+  }
+
+  .journey--featured .journey__line {
+    stroke: var(--white);
+  }
+
+  .journey--featured .journey__map circle {
+    stroke: var(--white);
+  }
+
+  .journey__summary {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  .journey--featured .journey__summary {
+    color: rgb(255 255 255 / 0.8);
+  }
+
+  .journey__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--blue-800);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .journey__meta li {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .journey__meta :global(svg) {
+    color: var(--sun-600);
+  }
+
+  .journey--featured .journey__meta {
+    color: var(--white);
+  }
+
+  .journey--featured .journey__meta :global(svg) {
+    color: var(--sun-300);
+  }
+
+  .journey__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: auto;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+
+  .journey--featured .journey__foot {
+    border-color: rgb(255 255 255 / 0.18);
+  }
+
+  .journey__price {
+    display: grid;
+    line-height: 1.2;
+    color: var(--ink-mute);
+    font-size: 0.78rem;
+  }
+
+  .journey__price strong {
+    color: var(--blue-900);
+    font-family: var(--font-display);
+    font-size: 1.9rem;
+    font-weight: 400;
+  }
+
+  .journey--featured .journey__price {
+    color: rgb(255 255 255 / 0.7);
+  }
+
+  .journey--featured .journey__price strong {
+    color: var(--white);
+  }
+
+  .journey--featured .btn--outline {
+    --btn-fg: var(--white);
+  }
+
+  @media (max-width: 1000px) {
+    .journeys__grid {
+      grid-template-columns: 1fr;
+      max-width: 620px;
+      margin-inline: auto;
+    }
+  }
+</style>
