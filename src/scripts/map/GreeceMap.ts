@@ -133,14 +133,15 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     }
     const pitch = overlay.isDocked ? 30 : 42;
     const margin = overlay.isDocked ? 120 : 70;
-    const ex = maxX - minX + margin * 2;
+    const labelPad = overlay.isDocked ? 110 : 40;
+    const ex = maxX - minX + margin * 2 + labelPad;
     const ez = maxZ - minZ + margin * 2;
     const vt = Math.tan(MathUtils.degToRad(FOV / 2));
     const ht = vt * (width / height2);
     const dx = ex / (2 * ht * area.w);
     const dz = (ez * Math.cos(MathUtils.degToRad(pitch))) / (2 * vt * area.h);
     return {
-      target: new Vector3((minX + maxX) / 2, 0, (minZ + maxZ) / 2 + 10),
+      target: new Vector3((minX + maxX + labelPad) / 2, 0, (minZ + maxZ) / 2 + 10),
       distance: Math.max(dx, dz) * 1.04,
       yaw: -6,
       pitch,
