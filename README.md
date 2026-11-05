@@ -2,7 +2,7 @@
 
 Landing page for Thalassa Travel: small-group journeys across Greece with an AR device included on every trip.
 
-The hero is a step-by-step journey over a real-time 3D relief map of Greece (three.js). Each scroll, swipe or arrow key moves to the next stop: the camera flies there and polaroid photos pop up, while a car or ferry draws the real road or ferry lane behind it at its own pace.
+The hero is a step-by-step journey over a real-time 3D relief map of Greece (three.js). Each scroll, swipe or arrow key moves to the next stop: the camera zooms out over the stretch of map between the two stops, then zooms in at the destination, where polaroid photos pop up. A car or ferry draws the real road or ferry lane at its own pace.
 
 ## Stack
 

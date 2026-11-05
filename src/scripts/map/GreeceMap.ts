@@ -1,7 +1,7 @@
 import { animate, motionValue, type AnimationPlaybackControls } from 'motion';
 import { Mesh, MathUtils, PerspectiveCamera, PlaneGeometry, Scene, TextureLoader, Vector3, WebGLRenderer, type Texture } from 'three';
 import { asset } from '../../lib/asset';
-import { applyPose, clonePose, flyTo, type Pose } from './camera';
+import { applyPose, clonePose, flyTo, hopTo, lerpAngle, type Pose } from './camera';
 import { journeyNodes } from './journey';
 import { Overlay, type Traveler } from './overlay';
 import { buildLegPaths, pointOn, segmentAt, type LegPath, type RouteData } from './path';
@@ -51,9 +51,11 @@ const CAMERA_EASE: Bezier = [0.65, 0, 0.35, 1];
 const DRAW_EASE: Bezier = [0.45, 0, 0.3, 1];
 const DRAW_DELAY = 0.15;
 const PANEL_SWITCH = 0.35;
+const HOP_ZOOM = 1.8;
 
 const flightDuration = (a: Pose, b: Pose) =>
   MathUtils.clamp(0.8 + a.target.distanceTo(b.target) / 600 + Math.abs(Math.log(b.distance / a.distance)) * 0.35, 0.9, 1.6);
+const hopDuration = (a: Pose, b: Pose) => MathUtils.clamp(1.9 + a.target.distanceTo(b.target) / 700, 2, 2.8);
 const drawDuration = (length: number) => MathUtils.clamp(0.6 + length / 180, 1.2, 3);
 
 function heightSampler(image: CanvasImageSource) {
@@ -176,6 +178,13 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     return s >= 0 ? poses.stops[s] : poses.overview;
   };
 
+  const widePose = (s0: number, s1: number, a: Pose, b: Pose) => {
+    const legs = paths.slice(Math.min(s0, s1), Math.max(s0, s1)).flatMap((p) => p.points);
+    const fit = fitPose(boundsOf([ground[s0], ground[s1], ...legs]), 40, lerpAngle(a.yaw, b.yaw, 0.5), 40, 0);
+    fit.distance = Math.max(fit.distance, Math.max(a.distance, b.distance) * HOP_ZOOM);
+    return fit;
+  };
+
   const tmp = new Vector3();
   const pose: Pose = clonePose(poses.overview);
   const fromPose: Pose = clonePose(poses.overview);
@@ -231,6 +240,7 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
   const drawn = motionValue(0);
   let flightAnim: AnimationPlaybackControls | null = null;
   let drawAnim: AnimationPlaybackControls | null = null;
+  let hop: Pose | null = null;
 
   const drawFor = (n: number) => (n >= nodes.outro ? routeLength : legStart[Math.max(0, nodes.stopAt(n))]);
   const legAt = (d: number) => {
@@ -241,7 +251,8 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
 
   const evalPose = (out: Pose) => {
     const p = flight.get();
-    return p >= 1 ? copyPose(nodePose(node), out) : flyTo(fromPose, nodePose(node), p, out);
+    if (p >= 1) return copyPose(nodePose(node), out);
+    return hop ? hopTo(fromPose, nodePose(node), hop, p, out) : flyTo(fromPose, nodePose(node), p, out);
   };
 
   const show = (target: number, instant = reducedMotion) => {
@@ -252,13 +263,17 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     node = n;
     flightAnim?.stop();
     drawAnim?.stop();
+    const fromStop = nodes.stopAt(fromNode);
+    const toStop = nodes.stopAt(n);
+    hop = !instant && fromStop >= 0 && toStop >= 0 ? widePose(fromStop, toStop, fromPose, nodePose(n)) : null;
     const to = drawFor(n);
     if (instant) {
       flight.jump(1);
       drawn.jump(to);
     } else {
       flight.jump(0);
-      flightAnim = animate(flight, 1, { duration: flightDuration(fromPose, nodePose(n)), ease: CAMERA_EASE });
+      if (hop) flightAnim = animate(flight, 1, { duration: hopDuration(fromPose, nodePose(n)), ease: 'linear' });
+      else flightAnim = animate(flight, 1, { duration: flightDuration(fromPose, nodePose(n)), ease: CAMERA_EASE });
       const from = drawn.get();
       if (to !== from) {
         drawAnim = animate(drawn, to, { duration: drawDuration(Math.abs(to - from)), ease: DRAW_EASE, delay: from === drawTo ? DRAW_DELAY : 0 });

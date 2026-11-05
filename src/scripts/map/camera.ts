@@ -29,6 +29,18 @@ export function flyTo(a: Pose, b: Pose, e: number, out: Pose, travel = a.target.
   return out;
 }
 
+export function hopTo(a: Pose, b: Pose, wide: Pose, t: number, out: Pose) {
+  const m = MathUtils.smootherstep(t, 0.1, 0.9);
+  const h = MathUtils.smoothstep(t, 0, 0.42) * (1 - MathUtils.smoothstep(t, 0.58, 1));
+  out.target.lerpVectors(a.target, b.target, m).lerp(wide.target, h);
+  out.yaw = lerpAngle(lerpAngle(a.yaw, b.yaw, m), wide.yaw, h);
+  out.pitch = MathUtils.lerp(MathUtils.lerp(a.pitch, b.pitch, m), wide.pitch, h);
+  out.distance = Math.exp(MathUtils.lerp(MathUtils.lerp(Math.log(a.distance), Math.log(b.distance), m), Math.log(wide.distance), h));
+  out.fx = MathUtils.lerp(MathUtils.lerp(a.fx, b.fx, m), wide.fx, h);
+  out.fy = MathUtils.lerp(MathUtils.lerp(a.fy, b.fy, m), wide.fy, h);
+  return out;
+}
+
 export function applyPose(camera: PerspectiveCamera, pose: Pose, yawOffset = 0, pitchOffset = 0) {
   const yaw = MathUtils.degToRad(pose.yaw + yawOffset);
   const pitch = MathUtils.degToRad(MathUtils.clamp(pose.pitch + pitchOffset, 5, 80));
