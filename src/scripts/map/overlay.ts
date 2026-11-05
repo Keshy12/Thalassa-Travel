@@ -57,7 +57,7 @@ export class Overlay {
   private sizes: { w: number; h: number }[][] = [];
   private labelW: number[] = [];
   private travelerW = 0;
-  private state = { group: -1, current: -2, panel: '', intro: -1, title: '', meta: '', mode: '', traveler: false, flip: false };
+  private state = { group: -1, current: -2, panel: '', intro: -1, title: '', meta: '', mode: '', traveler: false, side: 'right' };
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -248,11 +248,14 @@ export class Overlay {
       this.travelerW = 0;
     }
     this.travelerW ||= el.offsetWidth;
-    const room = this.width - 12 - p.x - this.travelerW;
-    const flip = p.x > this.width / 2 && room < (s.flip ? 40 : 0);
-    if (flip !== s.flip) {
-      el.classList.toggle('is-flipped', flip);
-      s.flip = flip;
+    const w = this.travelerW;
+    const leftLimit = !this.docked && this.contentRect ? this.contentRect.x + this.contentRect.w + 8 : 12;
+    const rightRoom = this.width - 12 - (p.x - 21 + w);
+    const side = rightRoom >= (s.side === 'right' ? 0 : 40) ? 'right' : p.x + 21 - w >= leftLimit ? 'left' : 'below';
+    if (side !== s.side) {
+      el.classList.toggle('is-flipped', side === 'left');
+      el.classList.toggle('is-below', side === 'below');
+      s.side = side;
     }
     el.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0)`;
   }
