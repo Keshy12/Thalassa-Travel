@@ -1,5 +1,18 @@
 import { animate, motionValue, type AnimationPlaybackControls } from 'motion';
-import { Mesh, MathUtils, PerspectiveCamera, PlaneGeometry, Scene, TextureLoader, Vector3, WebGLRenderer, type Texture } from 'three';
+import {
+  DirectionalLight,
+  Fog,
+  HemisphereLight,
+  Mesh,
+  MathUtils,
+  PerspectiveCamera,
+  PlaneGeometry,
+  Scene,
+  TextureLoader,
+  Vector3,
+  WebGLRenderer,
+  type Texture,
+} from 'three';
 import { asset } from '../../lib/asset';
 import { applyPose, clonePose, flyTo, type Pose } from './camera';
 import { journeyNodes } from './journey';
@@ -9,6 +22,8 @@ import { decodeHeight, lonLatToPx, lonLatToWorld, MAP_H, MAP_W, TEX_H, TEX_W } f
 import { RouteLines } from './routes';
 import { attachSteps } from './steps';
 import { createTerrainMaterial, FOG_HEX } from './terrainMaterial';
+import { DetailLayer, type DetailData } from './detail';
+import { PoiLabels } from './poi';
 
 export interface MapStop {
   name: string;
@@ -66,8 +81,7 @@ function heightSampler(image: CanvasImageSource) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
   ctx.drawImage(image, 0, 0, w, h);
   const data = ctx.getImageData(0, 0, w, h).data;
-  return (lon: number, lat: number) => {
-    const [px, py] = lonLatToPx(lon, lat);
+  const atPx = (px: number, py: number) => {
     const x = MathUtils.clamp(px * scale - 0.5, 0, w - 2);
     const y = MathUtils.clamp(py * scale - 0.5, 0, h - 2);
     const x0 = Math.floor(x);
@@ -79,6 +93,7 @@ function heightSampler(image: CanvasImageSource) {
     const bottom = at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx;
     return Math.max(0, top * (1 - fy) + bottom * fy);
   };
+  return Object.assign((lon: number, lat: number) => atPx(...lonLatToPx(lon, lat)), { px: atPx });
 }
 
 function boundsOf(points: Vector3[]): Bounds {
@@ -115,6 +130,51 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
 
   const scene = new Scene();
   scene.add(new Mesh(geometry, material));
+  const fog = new Fog(FOG_HEX, 900, 2600);
+  scene.fog = fog;
+  scene.add(new HemisphereLight(0xfff6e6, 0x40607a, 1.9));
+  const sun = new DirectionalLight(0xfff0d8, 2.4);
+  sun.position.copy(material.uniforms.uLightDir.value).multiplyScalar(100);
+  scene.add(sun);
+
+  const vertexH = new Float32Array((segX + 1) * (segY + 1)).fill(NaN);
+  const vertexHeight = (i: number, j: number) => {
+    const k = j * (segX + 1) + i;
+    if (Number.isNaN(vertexH[k])) vertexH[k] = sampleHeight.px((i / segX) * TEX_W, (j / segY) * TEX_H) * 0.001 * EXAG;
+    return vertexH[k];
+  };
+  const surface = (x: number, z: number) => {
+    const gx = MathUtils.clamp(((x + MAP_W / 2) / MAP_W) * segX, 0, segX - 1e-6);
+    const gz = MathUtils.clamp(((z + MAP_H / 2) / MAP_H) * segY, 0, segY - 1e-6);
+    const i = Math.floor(gx);
+    const j = Math.floor(gz);
+    const fx = gx - i;
+    const fz = gz - j;
+    const top = vertexHeight(i, j) * (1 - fx) + vertexHeight(i + 1, j) * fx;
+    const bottom = vertexHeight(i, j + 1) * (1 - fx) + vertexHeight(i + 1, j + 1) * fx;
+    return top * (1 - fz) + bottom * fz;
+  };
+
+  let detail: DetailLayer | null = null;
+  let poi: PoiLabels | null = null;
+  let coverAmt = 0;
+  let coverTex: Texture | null = null;
+  let disposed = false;
+  loader.loadAsync(asset('map/landcover.webp')).then((t) => {
+    if (disposed) return t.dispose();
+    t.anisotropy = aniso;
+    coverTex = t;
+    material.uniforms.uCover.value = t;
+  }, console.error);
+  fetch(asset('map/detail.json'))
+    .then((r) => r.json() as Promise<DetailData>)
+    .then((data) => {
+      if (disposed) return;
+      detail = new DetailLayer(data, surface);
+      detail.setResolution(width, height2);
+      scene.add(detail.group, detail.roads);
+      poi = new PoiLabels(root, detail.landmarks);
+    }, console.error);
 
   const ground = stops.map((s) => {
     const { x, z } = lonLatToWorld(s.lon, s.lat);
@@ -142,7 +202,7 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     const aspectBoost = MathUtils.clamp(1.25 / (width / height2), 1, 1.7);
     return {
       target: ground[i].clone(),
-      distance: stops[i].view.distance * aspectBoost * (overlay.isDocked ? 1.15 : 1),
+      distance: stops[i].view.distance * 0.62 * aspectBoost * (overlay.isDocked ? 1.15 : 1),
       yaw: stops[i].view.yaw,
       pitch: stops[i].view.pitch,
       fx: f.x,
@@ -205,6 +265,7 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     camera.aspect = width / height2;
     overlay.resize(width, height2);
     lines.setResolution(width, height2);
+    detail?.setResolution(width, height2);
     sectionTop = section.getBoundingClientRect().top + window.scrollY;
     poses = { overview: overviewPose(), stops: stops.map((_, i) => stopPose(i)) };
   };
@@ -339,6 +400,14 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     lines.group.scale.y = Math.max(riseE, 0.001);
     if (traveler) traveler.pos.y *= riseE;
     lines.setTime(time);
+    fog.near = un.uFogNear.value;
+    fog.far = un.uFogFar.value;
+    if (coverTex) {
+      coverAmt = reducedMotion ? 1 : Math.min(1, coverAmt + dt / 1.6);
+      un.uCoverAmt.value = MathUtils.smoothstep(coverAmt, 0, 1) * riseE;
+    }
+    const drawnIn = Math.abs(d - drawTo) <= 0.05;
+    detail?.update(pose.distance, activeStop >= 0 ? ground[activeStop] : null, rise >= 1 ? dt : 0, reducedMotion);
 
     renderer.render(scene, camera);
     overlay.update({
@@ -353,6 +422,7 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
       panel: nodes.panel(shown),
       intro: node === 0 ? p : fromNode === 0 ? 1 - p : 0,
     });
+    poi?.update(camera, width, height2, activeStop >= 0 && drawnIn ? ground[activeStop] : null, overlay.occupied, overlay.safeArea);
 
     if (!readyFired) {
       readyFired = true;
@@ -414,6 +484,10 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
       return sectionTop + section.offsetHeight;
     },
     dispose() {
+      disposed = true;
+      detail?.dispose();
+      poi?.dispose();
+      coverTex?.dispose();
       stopLoop();
       ro.disconnect();
       io.disconnect();

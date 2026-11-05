@@ -1,4 +1,4 @@
-import { ShaderMaterial, Vector2, Vector3, type Texture } from 'three';
+import { DataTexture, ShaderMaterial, Vector2, Vector3, type Texture } from 'three';
 import { DEPTH_MAX, ELEV_MAX, KM_PER_PX, SDF_RANGE, TEX_H, TEX_W } from './projection';
 
 const common = /* glsl */ `
@@ -47,6 +47,8 @@ const fragmentShader = /* glsl */ `
   uniform vec3 uFocus;
   uniform float uFocusAmt;
   uniform float uFocusRadius;
+  uniform sampler2D uCover;
+  uniform float uCoverAmt;
 
   float landH(vec2 uv) {
     return max(decodeH(texture2D(uHeight, uv).r), 0.0);
@@ -78,6 +80,12 @@ const fragmentShader = /* glsl */ `
     landCol = mix(landCol, vec3(0.980, 0.960, 0.910), smoothstep(0.8, 1.0, e));
     vec3 neighbor = mix(vec3(0.243, 0.396, 0.518), vec3(0.353, 0.494, 0.600), e);
     landCol = mix(neighbor, landCol, greece);
+    vec4 lc = texture2D(uCover, vUv);
+    float cov = greece * uCoverAmt * (1.0 - smoothstep(0.78, 0.95, e));
+    landCol = mix(landCol, vec3(0.80, 0.76, 0.52), smoothstep(0.35, 0.95, lc.a) * 0.3 * cov);
+    landCol = mix(landCol, vec3(0.90, 0.86, 0.58), smoothstep(0.2, 0.8, lc.b) * 0.5 * cov);
+    landCol = mix(landCol, vec3(0.45, 0.60, 0.33), smoothstep(0.1, 0.65, lc.r) * 0.82 * cov);
+    landCol = mix(landCol, vec3(0.95, 0.93, 0.89), smoothstep(0.08, 0.5, lc.g) * 0.85 * cov);
     float hBlur = max(decodeH(textureLod(uHeight, vUv, 4.5).r), 0.0);
     float cavity = clamp((max(h, 0.0) - hBlur) / 450.0, -1.0, 1.0);
     float light = 0.24 + 0.76 * diffuse;
@@ -126,6 +134,8 @@ export function srgb(hex: string): Vector3 {
 }
 
 export function createTerrainMaterial(height: Texture, masks: Texture, lod: number) {
+  const blank = new DataTexture(new Uint8Array(4), 1, 1);
+  blank.needsUpdate = true;
   return new ShaderMaterial({
     vertexShader,
     fragmentShader,
@@ -148,6 +158,8 @@ export function createTerrainMaterial(height: Texture, masks: Texture, lod: numb
       uFocus: { value: new Vector3() },
       uFocusAmt: { value: 0 },
       uFocusRadius: { value: 24 },
+      uCover: { value: blank },
+      uCoverAmt: { value: 0 },
     },
   });
 }

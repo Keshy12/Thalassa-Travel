@@ -481,6 +481,57 @@ const nextLine = (i: number) => {
     font-weight: 600;
   }
 
+  .journey__stage :global(.poi-layer) {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .journey__stage :global(.poi) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px 3px 6px;
+    border-radius: var(--radius-pill);
+    background: rgb(2 34 56 / 0.78);
+    color: var(--white);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    opacity: 0;
+    translate: 6px -50%;
+    transition: opacity 0.45s;
+    will-change: transform;
+  }
+
+  .journey__stage :global(.poi.is-left) {
+    translate: calc(-100% - 6px) -50%;
+  }
+
+  .journey__stage :global(.poi.is-visible) {
+    opacity: 1;
+  }
+
+  .journey__stage :global(.poi i) {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--sun-500);
+    box-shadow: 0 0 0 2px rgb(255 255 255 / 0.85);
+  }
+
+  .journey__stage :global(.poi[data-kind='castle'] i) {
+    background: #e08a4f;
+  }
+
+  .journey__stage :global(.poi[data-kind='lighthouse'] i) {
+    background: #e2574c;
+  }
+
   .polaroids {
     position: absolute;
     inset: 0;

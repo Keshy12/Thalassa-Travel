@@ -10,7 +10,8 @@
     "check": "astro check",
     "data:map": "node scripts/build-map-data.mjs",
     "data:route": "node scripts/build-route.mjs",
-    "data:placeholders": "node scripts/generate-placeholders.mjs"
+    "data:placeholders": "node scripts/generate-placeholders.mjs",
+    "data:detail": "python3 scripts/build-detail-data.py"
   },
   "dependencies": {
     "@fontsource-variable/montserrat": "^5.3.0",

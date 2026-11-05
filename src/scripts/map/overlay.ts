@@ -21,7 +21,7 @@ export interface OverlayFrame {
   intro: number;
 }
 
-interface Rect {
+export interface Rect {
   x: number;
   y: number;
   w: number;
@@ -55,6 +55,7 @@ export class Overlay {
   private docked = false;
   private safe: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private contentRect: Rect | null = null;
+  occupied: Rect[] = [];
   private sizes: { w: number; h: number }[][] = [];
   private labelW: number[] = [];
   private travelerW = 0;
@@ -73,6 +74,10 @@ export class Overlay {
     this.traveler = root.querySelector<HTMLElement>('[data-traveler]');
     this.travelerTitle = root.querySelector<HTMLElement>('[data-traveler-title]');
     this.travelerMeta = root.querySelector<HTMLElement>('[data-traveler-meta]');
+  }
+
+  get safeArea(): Rect {
+    return this.safe;
   }
 
   get isDocked() {
@@ -104,9 +109,9 @@ export class Overlay {
   }
 
   private polaroidWidth(i: number) {
-    if (this.docked) return Math.round(Math.min(150, (this.width - 32 - 24) / 3));
+    if (this.docked) return Math.round(Math.min(124, (this.width - 32 - 24) / 3));
     const scale = Math.min(1.12, Math.max(0.72, this.width / 1440));
-    return Math.round(SLOTS[i].w * scale);
+    return Math.round(SLOTS[i].w * scale * 0.78);
   }
 
   focusPoint(): { x: number; y: number } {
@@ -211,10 +216,13 @@ export class Overlay {
       this.linkSvg.classList.toggle('is-visible', f.polaroidStop >= 0);
       s.group = f.polaroidStop;
     }
+    this.occupied = [...placed];
+    if (this.contentRect) this.occupied.push(this.contentRect);
     if (f.polaroidStop < 0) return;
 
     const pin = screen[f.polaroidStop];
     const rects = this.layout(pin.x, pin.y, f.polaroidStop);
+    this.occupied.push(...rects);
     const els = this.groups[f.polaroidStop].querySelectorAll<HTMLElement>('[data-polaroid]');
     rects.forEach((r, i) => {
       const el = els[i];
