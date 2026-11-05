@@ -215,6 +215,8 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
   ro.observe(section);
   const content = root.querySelector('[data-content]');
   if (content) ro.observe(content);
+  const tourbar = root.querySelector('[data-tourbar]');
+  if (tourbar) ro.observe(tourbar);
 
   const pointer = { x: 0, y: 0, sx: 0, sy: 0 };
   const onPointer = (e: PointerEvent) => {
