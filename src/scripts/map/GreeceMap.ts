@@ -1,11 +1,13 @@
+import { animate, motionValue, type AnimationPlaybackControls } from 'motion';
 import { Mesh, MathUtils, PerspectiveCamera, PlaneGeometry, Scene, TextureLoader, Vector3, WebGLRenderer, type Texture } from 'three';
 import { asset } from '../../lib/asset';
-import { applyPose, clonePose, easeInOutSine, flyTo, lerpAngle, type Pose } from './camera';
-import { buildTimeline, dwellOf, locate, type Segment } from './journey';
+import { applyPose, clonePose, flyTo, type Pose } from './camera';
+import { journeyNodes } from './journey';
 import { Overlay, type Traveler } from './overlay';
 import { buildLegPaths, pointOn, segmentAt, type LegPath, type RouteData } from './path';
 import { decodeHeight, lonLatToPx, lonLatToWorld, MAP_H, MAP_W, TEX_H, TEX_W } from './projection';
 import { RouteLines } from './routes';
+import { attachSteps } from './steps';
 import { createTerrainMaterial, FOG_HEX } from './terrainMaterial';
 
 export interface MapStop {
@@ -27,7 +29,7 @@ export interface MapOptions {
 }
 
 export interface GreeceMapHandle {
-  scrollYFor(stop: number): number;
+  goTo(stop: number): void;
   scrollYEnd(): number;
   dispose(): void;
 }
@@ -39,9 +41,20 @@ interface Bounds {
   maxZ: number;
 }
 
+type Bezier = [number, number, number, number];
+
 const EXAG = 7;
 const FOV = 30;
 const smooth = MathUtils.smoothstep;
+
+const CAMERA_EASE: Bezier = [0.65, 0, 0.35, 1];
+const DRAW_EASE: Bezier = [0.45, 0, 0.3, 1];
+const DRAW_DELAY = 0.15;
+const PANEL_SWITCH = 0.35;
+
+const flightDuration = (a: Pose, b: Pose) =>
+  MathUtils.clamp(0.8 + a.target.distanceTo(b.target) / 600 + Math.abs(Math.log(b.distance / a.distance)) * 0.35, 0.9, 1.6);
+const drawDuration = (length: number) => MathUtils.clamp(0.6 + length / 180, 1.2, 3);
 
 function heightSampler(image: CanvasImageSource) {
   const scale = 0.5;
@@ -111,10 +124,10 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
   const lines = new RouteLines(paths);
   scene.add(lines.group);
 
-  const timeline = buildTimeline(route.legs.map((l) => l.km));
-  section.style.setProperty('--units', String(timeline.total));
-  const dwells = stops.map((_, i) => dwellOf(timeline, i)!);
+  const nodes = journeyNodes(stops.length);
   const last = stops.length - 1;
+  const legStart = paths.reduce<number[]>((acc, p) => [...acc, acc[acc.length - 1] + p.length], [0]);
+  const routeLength = legStart[paths.length];
 
   const camera = new PerspectiveCamera(FOV, 1, 1, 6000);
   const overlay = new Overlay(root);
@@ -123,7 +136,6 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
   let width = 1;
   let height2 = 1;
   let sectionTop = 0;
-  let scrollable = 1;
 
   const stopPose = (i: number): Pose => {
     const f = overlay.focusPoint();
@@ -158,35 +170,16 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
   const overviewPose = () =>
     fitPose(boundsOf(ground), overlay.isDocked ? 30 : 42, -6, overlay.isDocked ? 120 : 70, overlay.isDocked ? 110 : 40);
 
-  const legFitPose = (i: number) => {
-    const f = overlay.focusPoint();
-    const area = { x: f.x - 0.22, y: f.y - 0.25, w: 0.44, h: 0.4 };
-    return fitPose(boundsOf(paths[i].points), 46, (stops[i].view.yaw + stops[i + 1].view.yaw) / 2, 30, 0, overlay.isDocked ? overlay.overviewArea() : area);
-  };
-
   let poses = { overview: overviewPose(), stops: stops.map((_, i) => stopPose(i)) };
+  const nodePose = (n: number) => {
+    const s = nodes.stopAt(n);
+    return s >= 0 ? poses.stops[s] : poses.overview;
+  };
 
   const tmp = new Vector3();
-  const tmpSmooth = new Vector3();
   const pose: Pose = clonePose(poses.overview);
-
-  const legPose = (i: number, u: number, out: Pose) => {
-    const a = poses.stops[i];
-    const b = poses.stops[i + 1];
-    const leg = paths[i];
-    const e = easeInOutSine(u);
-    pointOn(leg, e * leg.length, tmpSmooth, true);
-    const w = smooth(u, 0, 0.14) * (1 - smooth(u, 0.86, 1));
-    out.target.lerpVectors(a.target, b.target, e).lerp(tmpSmooth, w);
-    const hi = Math.max(a.distance, b.distance);
-    const bump = Math.log(Math.max(1, Math.min(leg.km * 0.7, 560) / hi));
-    const arc = Math.sin(Math.PI * e);
-    out.distance = Math.exp(MathUtils.lerp(Math.log(a.distance), Math.log(b.distance), e) + bump * arc);
-    out.yaw = lerpAngle(a.yaw, b.yaw, e);
-    out.pitch = MathUtils.lerp(a.pitch, b.pitch, e) - Math.min(9, bump * 7) * arc;
-    out.fx = MathUtils.lerp(a.fx, b.fx, e);
-    out.fy = MathUtils.lerp(a.fy, b.fy, e);
-  };
+  const fromPose: Pose = clonePose(poses.overview);
+  const scratch: Pose = clonePose(poses.overview);
 
   const copyPose = (src: Pose, out: Pose) => {
     out.target.copy(src.target);
@@ -195,36 +188,7 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     out.pitch = src.pitch;
     out.fx = src.fx;
     out.fy = src.fy;
-  };
-
-  const poseAt = (seg: Segment, u: number, out: Pose) => {
-    if (reducedMotion) {
-      if (seg.kind === 'dwell') copyPose(poses.stops[seg.stop], out);
-      else if (seg.kind === 'leg') copyPose(legFitPose(seg.leg), out);
-      else copyPose(poses.overview, out);
-      return;
-    }
-    const arc = Math.sin(Math.PI * u);
-    switch (seg.kind) {
-      case 'intro':
-        copyPose(poses.overview, out);
-        out.yaw += arc * 2;
-        break;
-      case 'approach':
-        flyTo(poses.overview, poses.stops[0], u, out);
-        break;
-      case 'dwell':
-        copyPose(poses.stops[seg.stop], out);
-        out.yaw += arc * 3;
-        out.distance *= 1 - arc * 0.04;
-        break;
-      case 'leg':
-        legPose(seg.leg, u, out);
-        break;
-      case 'outro':
-        flyTo(poses.stops[last], poses.overview, u, out);
-        break;
-    }
+    return out;
   };
 
   const displaySegment = (leg: LegPath, d: number) => {
@@ -242,13 +206,9 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     overlay.resize(width, height2);
     lines.setResolution(width, height2);
     sectionTop = section.getBoundingClientRect().top + window.scrollY;
-    scrollable = Math.max(1, section.offsetHeight - root.offsetHeight);
     poses = { overview: overviewPose(), stops: stops.map((_, i) => stopPose(i)) };
   };
   measure();
-
-  const scrollT = () => MathUtils.clamp((window.scrollY - sectionTop) / scrollable, 0, 1) * timeline.total;
-  let ts = scrollT();
 
   const ro = new ResizeObserver(measure);
   ro.observe(root);
@@ -264,6 +224,49 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
   };
   if (!reducedMotion) window.addEventListener('pointermove', onPointer, { passive: true });
 
+  let node = 0;
+  let fromNode = 0;
+  let drawTo = 0;
+  const flight = motionValue(1);
+  const drawn = motionValue(0);
+  let flightAnim: AnimationPlaybackControls | null = null;
+  let drawAnim: AnimationPlaybackControls | null = null;
+
+  const drawFor = (n: number) => (n >= nodes.outro ? routeLength : legStart[Math.max(0, nodes.stopAt(n))]);
+  const legAt = (d: number) => {
+    let i = 0;
+    while (i < paths.length && d >= legStart[i + 1]) i++;
+    return i;
+  };
+
+  const evalPose = (out: Pose) => {
+    const p = flight.get();
+    return p >= 1 ? copyPose(nodePose(node), out) : flyTo(fromPose, nodePose(node), p, out);
+  };
+
+  const show = (target: number, instant = reducedMotion) => {
+    const n = MathUtils.clamp(target, 0, nodes.count - 1);
+    if (n === node) return;
+    copyPose(evalPose(scratch), fromPose);
+    fromNode = flight.get() < PANEL_SWITCH ? fromNode : node;
+    node = n;
+    flightAnim?.stop();
+    drawAnim?.stop();
+    const to = drawFor(n);
+    if (instant) {
+      flight.jump(1);
+      drawn.jump(to);
+    } else {
+      flight.jump(0);
+      flightAnim = animate(flight, 1, { duration: flightDuration(fromPose, nodePose(n)), ease: CAMERA_EASE });
+      const from = drawn.get();
+      if (to !== from) {
+        drawAnim = animate(drawn, to, { duration: drawDuration(Math.abs(to - from)), ease: DRAW_EASE, delay: from === drawTo ? DRAW_DELAY : 0 });
+      }
+    }
+    drawTo = to;
+  };
+
   let rise = reducedMotion ? 1 : 0;
   let time = 0;
   let lastNow = performance.now();
@@ -272,7 +275,7 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
   let frames = 0;
   let frameTime = 0;
   let readyFired = false;
-  let arrived = -1;
+  let arrivedStop = -1;
   const fills = stops.map(() => 0);
 
   const render = (now: number) => {
@@ -281,12 +284,9 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     lastNow = now;
     time += dt;
 
-    const target = scrollT();
-    ts = reducedMotion ? target : ts + (target - ts) * (1 - Math.exp(-dt * 4.5));
-    if (Math.abs(target - ts) < 1e-4) ts = target;
-    const settled = Math.abs(target - ts) < 0.5;
-    const { seg, u } = locate(timeline, ts);
-    poseAt(seg, u, pose);
+    const p = flight.get();
+    const arrived = p >= 1;
+    evalPose(pose);
 
     rise = Math.min(1, rise + dt / 2.6);
     const riseE = 1 - (1 - rise) ** 3;
@@ -295,62 +295,32 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     camera.setViewOffset(width, height2, (0.5 - pose.fx) * width, (0.5 - pose.fy) * height2, width, height2);
     applyPose(camera, pose, -pointer.sx * 2.2, pointer.sy * 1.4);
 
-    let activeStop = -1;
-    let nextStop = -1;
-    let polaroidStop = -1;
-    let focusStop = -1;
-    let focusAmt = 0;
-    let panel = 'intro';
-    let traveler: Traveler | null = null;
+    const toStop = nodes.stopAt(node);
+    const shown = p < PANEL_SWITCH ? fromNode : node;
+    const focusStop = p < 0.5 ? nodes.stopAt(fromNode) : toStop;
+    const focusAmt = p < 0.5 ? 1 - smooth(p, 0, 0.3) : smooth(p, 0.7, 1);
+    const activeStop = arrived ? toStop : -1;
 
-    if (seg.kind === 'approach') {
-      focusStop = 0;
-      focusAmt = smooth(u, 0.75, 1);
-      panel = u < 0.5 ? 'intro' : 'stop-0';
-      lines.setProgress(-1, 0);
-    } else if (seg.kind === 'dwell') {
-      activeStop = focusStop = seg.stop;
-      focusAmt = 1;
-      panel = `stop-${seg.stop}`;
-      if (settled && u > 0.1 && u < 0.92) polaroidStop = seg.stop;
-      lines.setProgress(seg.stop, 0);
-    } else if (seg.kind === 'leg') {
-      const i = seg.leg;
-      const leg = paths[i];
-      const d = easeInOutSine(u) * leg.length;
-      nextStop = i + 1;
-      focusStop = u < 0.5 ? i : i + 1;
-      focusAmt = u < 0.5 ? 1 - smooth(u, 0, 0.15) : smooth(u, 0.85, 1);
-      panel = `stop-${u < 0.5 ? i : i + 1}`;
-      lines.setProgress(i, d);
-      if (u > 0.03 && u < 0.97) {
-        const shown = displaySegment(leg, d);
-        traveler = {
-          pos: pointOn(leg, d, tmp),
-          mode: shown.mode,
-          title: `${stops[i].name} → ${stops[i + 1].name}`,
-          meta: `${shown.km} km by ${shown.mode === 'sea' ? 'ferry' : 'road'}`,
-        };
-      }
-    } else if (seg.kind === 'outro') {
-      focusStop = last;
-      focusAmt = 1 - smooth(u, 0, 0.25);
-      panel = u < 0.35 ? `stop-${last}` : 'outro';
-      lines.setProgress(paths.length, 0);
-    } else {
-      lines.setProgress(-1, 0);
+    const d = drawn.get();
+    const leg = legAt(d);
+    const along = leg < paths.length ? d - legStart[leg] : 0;
+    lines.setProgress(leg, along);
+    let traveler: Traveler | null = null;
+    if (Math.abs(d - drawTo) > 0.05 && leg < paths.length) {
+      const segment = displaySegment(paths[leg], along);
+      traveler = {
+        pos: pointOn(paths[leg], along, tmp),
+        mode: segment.mode,
+        title: `${stops[leg].name} → ${stops[leg + 1].name}`,
+        meta: `${segment.km} km by ${segment.mode === 'sea' ? 'ferry' : 'road'}`,
+      };
     }
 
-    let current = -1;
-    stops.forEach((_, i) => {
-      const start = dwells[i].t0;
-      const end = i < last ? dwells[i + 1].t0 : timeline.total;
-      fills[i] = MathUtils.clamp((ts - start) / (end - start), 0, 1);
-      if (ts >= start && (ts < end || i === last)) current = i;
-    });
+    for (let i = 0; i < last; i++) fills[i] = MathUtils.clamp((d - legStart[i]) / paths[i].length, 0, 1);
+    fills[last] = node === nodes.outro ? p : fromNode === nodes.outro ? 1 - p : 0;
 
-    if (activeStop !== arrived) {
-      arrived = activeStop;
+    if (activeStop !== arrivedStop) {
+      arrivedStop = activeStop;
       if (activeStop >= 0) opts.onArrive?.(activeStop);
     }
 
@@ -363,7 +333,7 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     un.uFogNear.value = pose.distance * 0.9;
     un.uFogFar.value = pose.distance * 2.6 + 400;
 
-    pinWorld.forEach((p, i) => p.set(ground[i].x, ground[i].y * riseE + 0.6, ground[i].z));
+    pinWorld.forEach((pin, i) => pin.set(ground[i].x, ground[i].y * riseE + 0.6, ground[i].z));
     lines.group.scale.y = Math.max(riseE, 0.001);
     if (traveler) traveler.pos.y *= riseE;
     lines.setTime(time);
@@ -373,13 +343,13 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
       camera,
       pins: pinWorld,
       activeStop,
-      nextStop,
-      polaroidStop,
+      nextStop: arrived ? -1 : toStop,
+      polaroidStop: activeStop,
       traveler,
       fills,
-      current,
-      panel,
-      intro: 1 - smooth(ts, 0, 0.35),
+      current: shown === nodes.outro ? last : nodes.stopAt(shown),
+      panel: nodes.panel(shown),
+      intro: node === 0 ? p : fromNode === 0 ? 1 - p : 0,
     });
 
     if (!readyFired) {
@@ -411,21 +381,32 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
   };
   const syncLoop = () => (inView && !document.hidden ? startLoop() : stopLoop());
 
+  const isActive = () => inView && !document.documentElement.classList.contains('menu-open') && Math.abs(window.scrollY - sectionTop) < 2;
+  const syncLock = () => section.classList.toggle('is-locked', isActive());
+  window.addEventListener('scroll', syncLock, { passive: true });
+
   const io = new IntersectionObserver(([entry]) => {
     inView = entry.isIntersecting;
-    if (inView) ts = scrollT();
     syncLoop();
+    syncLock();
   });
   io.observe(root);
   document.addEventListener('visibilitychange', syncLoop);
   syncLoop();
+  syncLock();
 
-  const yForT = (t: number) => sectionTop + (t / timeline.total) * scrollable;
+  const detachSteps = attachSteps({
+    root: section,
+    active: isActive,
+    canStep: (dir) => (dir > 0 ? node < nodes.outro : node > 0),
+    step: (dir) => show(node + dir),
+    leave: () => window.scrollTo({ top: sectionTop + section.offsetHeight }),
+  });
 
   return {
-    scrollYFor(stop: number) {
-      const d = dwells[stop];
-      return yForT(d.t0 + (d.t1 - d.t0) * 0.5);
+    goTo(stop: number) {
+      if (Math.abs(window.scrollY - sectionTop) > 1) window.scrollTo({ top: sectionTop });
+      show(nodes.ofStop(stop));
     },
     scrollYEnd() {
       return sectionTop + section.offsetHeight;
@@ -434,8 +415,14 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
       stopLoop();
       ro.disconnect();
       io.disconnect();
+      detachSteps();
+      flightAnim?.stop();
+      drawAnim?.stop();
+      flight.destroy();
+      drawn.destroy();
       document.removeEventListener('visibilitychange', syncLoop);
       window.removeEventListener('pointermove', onPointer);
+      window.removeEventListener('scroll', syncLock);
       lines.dispose();
       geometry.dispose();
       material.dispose();

@@ -56,7 +56,8 @@ export class Overlay {
   private contentRect: Rect | null = null;
   private sizes: { w: number; h: number }[][] = [];
   private labelW: number[] = [];
-  private state = { group: -1, current: -2, panel: '', intro: -1, title: '', meta: '', mode: '', traveler: false };
+  private travelerW = 0;
+  private state = { group: -1, current: -2, panel: '', intro: -1, title: '', meta: '', mode: '', traveler: false, flip: false };
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -89,6 +90,7 @@ export class Overlay {
     const left = !this.docked && this.contentRect ? this.contentRect.x + this.contentRect.w + 28 : 16;
     const top = this.docked && this.contentRect ? this.contentRect.y + this.contentRect.h + 12 : 112;
     this.safe = { x: left, y: top, w: width - 20 - left, h: barTop - 14 - top };
+    this.travelerW = 0;
     this.labelW = this.pins.map((p) => p.querySelector<HTMLElement>('.pin__label')?.offsetWidth ?? 80);
     this.sizes = this.groups.map((g) =>
       [...g.querySelectorAll<HTMLElement>('[data-polaroid]')].map((el, i) => {
@@ -224,14 +226,13 @@ export class Overlay {
     const el = this.traveler;
     if (!el) return;
     const s = this.state;
-    const visible = !!t;
+    const p = t && this.project(t.pos, camera);
+    const visible = !!p && p.visible && p.x > 0 && p.x < this.width && p.y > 0 && p.y < this.height;
     if (visible !== s.traveler) {
       el.classList.toggle('is-visible', visible);
       s.traveler = visible;
     }
-    if (!t) return;
-    const p = this.project(t.pos, camera);
-    el.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0)`;
+    if (!t || !p) return;
     if (t.mode !== s.mode) {
       el.dataset.mode = t.mode;
       s.mode = t.mode;
@@ -239,11 +240,21 @@ export class Overlay {
     if (t.title !== s.title && this.travelerTitle) {
       this.travelerTitle.textContent = t.title;
       s.title = t.title;
+      this.travelerW = 0;
     }
     if (t.meta !== s.meta && this.travelerMeta) {
       this.travelerMeta.textContent = t.meta;
       s.meta = t.meta;
+      this.travelerW = 0;
     }
+    this.travelerW ||= el.offsetWidth;
+    const room = this.width - 12 - p.x - this.travelerW;
+    const flip = p.x > this.width / 2 && room < (s.flip ? 40 : 0);
+    if (flip !== s.flip) {
+      el.classList.toggle('is-flipped', flip);
+      s.flip = flip;
+    }
+    el.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, 0)`;
   }
 
   private layout(px: number, py: number, stop: number): Rect[] {

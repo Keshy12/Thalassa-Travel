@@ -2,12 +2,13 @@
 
 Landing page for Thalassa Travel: small-group journeys across Greece with an AR device included on every trip.
 
-The hero is a scroll-driven journey over a real-time 3D relief map of Greece (three.js). As you scroll, the camera follows a car or ferry along the planned trip. Real roads and ferry lanes are drawn as you travel, and polaroid photos pop up at each destination.
+The hero is a step-by-step journey over a real-time 3D relief map of Greece (three.js). Each scroll, swipe or arrow key moves to the next stop: the camera flies there and polaroid photos pop up, while a car or ferry draws the real road or ferry lane behind it at its own pace.
 
 ## Stack
 
 - [Astro](https://astro.build) 7, static output, TypeScript
 - [three.js](https://threejs.org) without wrappers, loaded lazily so the page renders before the map
+- [Motion](https://motion.dev) for the camera and route animations
 - Plain CSS with custom properties. No UI component libraries
 - Self-hosted brand fonts: Marcellus (display) and Montserrat (text), per the brand book
 
@@ -36,7 +37,7 @@ src/
     site.ts           name, contact details, navigation
     laurel.json       laurel branches from the logo, used as decoration
   components/         one Astro component per page section
-  scripts/map/        three.js map: terrain shader, scroll timeline, camera, route lines, DOM overlay
+  scripts/map/        three.js map: terrain shader, journey steps, camera, route lines, DOM overlay
   styles/global.css   design tokens (colours, type scale, spacing)
 public/
   brand/              logo variants exported from the Illustrator files
@@ -54,8 +55,6 @@ Athens → Patras → Chlemoutsi Castle → Turtle Bay (Laganas, Zakynthos) → 
 1. Edit the stops in `src/data/destinations.ts`.
 2. Edit `places`, `lanes` and `legs` in `scripts/build-route.mjs`.
 3. Run `npm run data:route`.
-
-The scroll length of the hero section follows from the leg distances.
 
 ## Replacing the photos
 
@@ -82,9 +81,9 @@ Copy, prices, testimonials, FAQ answers, AR device claims and contact details (`
 - `public/map/masks.png`: coastline distance field and Greece mask
 - `src/data/map-meta.json` and `src/data/greece-outline.json`
 
-The camera view for each stop is the `view` field in `destinations.ts`. Timeline proportions (intro, stops, legs, outro) are in `src/scripts/map/journey.ts`.
+The camera view for each stop is the `view` field in `destinations.ts`. The steps (intro, one per stop, outro) are in `src/scripts/map/journey.ts`, the scroll, swipe and keyboard handling in `steps.ts`, and the camera and drawing timings at the top of `GreeceMap.ts`. While the hero fills the screen, each gesture moves one step; past the last step the page scrolls on as normal.
 
-The map pauses when off-screen or in a background tab, and lowers its resolution on slow devices. With `prefers-reduced-motion`, the camera cuts between stops instead of flying, and the route still draws as you scroll. Browsers without WebGL 2 get a static outline map.
+The map pauses when off-screen or in a background tab, and lowers its resolution on slow devices. With `prefers-reduced-motion`, the camera cuts between stops and the route appears without animation. Browsers without WebGL 2 get a static outline map.
 
 ## Data attribution
 

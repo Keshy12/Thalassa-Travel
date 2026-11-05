@@ -53,13 +53,12 @@ async function init() {
     return goStatic();
   }
 
-  const goTo = (i: number) => window.scrollTo({ top: map.scrollYFor(i), behavior });
-  gotoButtons.forEach((b) => b.addEventListener('click', () => goTo(Number(b.dataset.goto))));
+  gotoButtons.forEach((b) => b.addEventListener('click', () => map.goTo(Number(b.dataset.goto))));
   skip?.addEventListener('click', () => window.scrollTo({ top: map.scrollYEnd(), behavior }));
 
   window.addEventListener('thalassa:goto', (e) => {
     const i = destinations.findIndex((d) => d.id === (e as CustomEvent<string>).detail);
-    if (i >= 0) goTo(i);
+    if (i >= 0) map.goTo(i);
   });
 }
 

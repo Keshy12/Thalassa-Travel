@@ -11,17 +11,12 @@ export interface Pose {
 
 export const clonePose = (p: Pose): Pose => ({ ...p, target: p.target.clone() });
 
-export const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-
-export const easeInOutSine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2;
-
 export function lerpAngle(a: number, b: number, t: number) {
   const d = ((((b - a) % 360) + 540) % 360) - 180;
   return a + d * t;
 }
 
-export function flyTo(a: Pose, b: Pose, t: number, out: Pose, travel = a.target.distanceTo(b.target)) {
-  const e = easeInOutCubic(t);
+export function flyTo(a: Pose, b: Pose, e: number, out: Pose, travel = a.target.distanceTo(b.target)) {
   out.target.lerpVectors(a.target, b.target, e);
   out.yaw = lerpAngle(a.yaw, b.yaw, e);
   const hi = Math.max(a.distance, b.distance);

@@ -3,12 +3,10 @@ import { destinations } from '../data/destinations';
 import { journeys } from '../data/journeys';
 import { outline, toOutline } from '../lib/outline';
 import route from '../data/route.json';
-import { buildTimeline } from '../scripts/map/journey';
 import Icon from './Icon.astro';
 import Laurels from './Laurels.astro';
 
 const pad = (n: number) => String(n).padStart(2, '0');
-const timeline = buildTimeline(route.legs.map((l) => l.km));
 const odyssey = journeys.find((j) => j.id === 'odyssey')!;
 const km = new Intl.NumberFormat('en-GB');
 const nextLine = (i: number) => {
@@ -19,7 +17,7 @@ const nextLine = (i: number) => {
 };
 ---
 
-<section class="journey" id="top" data-hero style={`--units:${timeline.total.toFixed(3)}`}>
+<section class="journey" id="top" data-hero>
   <div class="journey__stage" data-stage>
     <svg class="journey__fallback" viewBox={outline.viewBox} aria-hidden="true">
       <path d={outline.d}></path>
@@ -176,9 +174,8 @@ const nextLine = (i: number) => {
 
 <style>
   .journey {
-    --unit: 30svh;
     position: relative;
-    height: calc(100svh + var(--units, 21.6) * var(--unit));
+    height: 100svh;
     background: #03304f;
     color: var(--white);
   }
@@ -199,6 +196,10 @@ const nextLine = (i: number) => {
   .journey.is-static .journey__stage {
     position: relative;
     min-height: 680px;
+  }
+
+  .journey.is-locked .journey__stage {
+    touch-action: pinch-zoom;
   }
 
   .journey__canvas {
@@ -400,6 +401,11 @@ const nextLine = (i: number) => {
     opacity: 1;
   }
 
+  .traveler.is-flipped {
+    flex-direction: row-reverse;
+    translate: -100% 0;
+  }
+
   .traveler__icon {
     position: relative;
     display: grid;
@@ -422,6 +428,10 @@ const nextLine = (i: number) => {
     border: 2px solid rgb(242 193 78 / 0.8);
     border-radius: 50%;
     animation: pulse 1.8s var(--ease-out) infinite;
+  }
+
+  .traveler.is-flipped .traveler__icon {
+    margin: -21px -21px 0 0;
   }
 
   .traveler__icon :global(svg) {
@@ -916,6 +926,10 @@ const nextLine = (i: number) => {
 
     .tourbar {
       gap: 10px;
+    }
+
+    .journey.is-locked .tourbar__list {
+      touch-action: pan-x pinch-zoom;
     }
 
     .tourbar__list {

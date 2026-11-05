@@ -16,6 +16,7 @@
     "@fontsource-variable/montserrat": "^5.3.0",
     "@fontsource/marcellus": "^5.3.0",
     "astro": "^7.4.5",
+    "motion": "^14.9.1",
     "three": "^0.187.0"
   },
   "devDependencies": {
