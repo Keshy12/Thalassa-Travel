@@ -7,6 +7,7 @@ import {
   Float32BufferAttribute,
   Group,
   IcosahedronGeometry,
+  InstancedBufferAttribute,
   InstancedMesh,
   MathUtils,
   Matrix4,
@@ -77,7 +78,11 @@ function house() {
   const roof = new ConeGeometry(0.26, 0.15, 4);
   roof.rotateY(Math.PI / 4);
   roof.scale(1, 1, 1.25);
-  return merge([painted(at(new BoxGeometry(0.34, 0.2, 0.42), 0, 0.1, 0), '#fbf7ef'), painted(at(roof, 0, 0.275, 0), '#c8673f')]);
+  return merge([
+    painted(at(new BoxGeometry(0.34, 0.2, 0.42), 0, 0.1, 0), '#fbf7ef'),
+    painted(at(new BoxGeometry(0.346, 0.045, 0.426), 0, 0.115, 0), '#dfe8ee'),
+    painted(at(roof, 0, 0.275, 0), '#c8673f'),
+  ]);
 }
 
 function block() {
@@ -135,13 +140,17 @@ export interface GrowUniforms {
   uGrow: { value: number };
   uReveal: { value: number };
   uRevealCenter: { value: Vector2 };
+  uShadowMix: { value: number };
+  uNight: { value: number };
 }
+
+export type ShadowAt = (x: number, y: number, z: number, dir: Vector3) => number;
 
 function growMaterial(u: GrowUniforms, opts: { roughness?: number } = {}) {
   const m = new MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: opts.roughness ?? 0.85 });
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, u);
-    shader.vertexShader = `uniform float uGrow;\nuniform float uReveal;\nuniform vec2 uRevealCenter;\n${shader.vertexShader}`.replace(
+    shader.vertexShader = `uniform float uGrow;\nuniform float uReveal;\nuniform vec2 uRevealCenter;\nuniform float uShadowMix;\nattribute vec2 aShadow;\nvarying float vShadow;\n${shader.vertexShader}`.replace(
       '#include <begin_vertex>',
       `#include <begin_vertex>
       #ifdef USE_INSTANCING
@@ -151,8 +160,25 @@ function growMaterial(u: GrowUniforms, opts: { roughness?: number } = {}) {
       #endif
       float g = clamp((uReveal - distance(ip, uRevealCenter)) / 9.0, 0.0, 1.0) * uGrow;
       g = g * g * (3.0 - 2.0 * g);
-      transformed *= g;`,
+      transformed *= g;
+      vShadow = mix(aShadow.x, aShadow.y, uShadowMix);`,
     );
+    shader.fragmentShader = `uniform float uNight;\nvarying float vShadow;\n${shader.fragmentShader}`
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+        #ifdef USE_COLOR
+          float win = step(0.08, vColor.b - vColor.r);
+          float lamp = step(0.95, vColor.r) * step(0.65, vColor.g) * step(vColor.g, 0.85) * step(vColor.b, 0.4);
+          totalEmissiveRadiance += vec3(1.0, 0.7, 0.36) * (win * 1.5 + lamp * 3.5) * uNight;
+        #endif`,
+      )
+      .replace(
+        '#include <lights_fragment_end>',
+        `#include <lights_fragment_end>
+        reflectedLight.directDiffuse *= mix(0.18, 1.0, vShadow);
+        reflectedLight.directSpecular *= vShadow;`,
+      );
   };
   return m;
 }
@@ -166,9 +192,20 @@ export class DetailLayer {
   readonly group = new Group();
   readonly roads = new Group();
   readonly landmarks: Landmark[] = [];
-  readonly uniforms: GrowUniforms = { uGrow: { value: 0 }, uReveal: { value: 0 }, uRevealCenter: { value: new Vector2() } };
+  readonly uniforms: GrowUniforms = {
+    uGrow: { value: 0 },
+    uReveal: { value: 0 },
+    uRevealCenter: { value: new Vector2() },
+    uShadowMix: { value: 0 },
+    uNight: { value: 0 },
+  };
   private materials: Material[] = [];
   private roadMaterials: LineMaterial[] = [];
+  private meshes: { mesh: InstancedMesh; base: Float32Array; shadow: InstancedBufferAttribute }[] = [];
+  private shadowCache = new Map<number, Float32Array[]>();
+  private shadowPair = '';
+  private roadDay = [new Color(0xfff3d6), new Color(0xffffff)];
+  private roadNight = new Color(0xffb35c);
 
   constructor(data: DetailData, surface: SurfaceAt) {
     const [lon0, lat0] = data.origin;
@@ -205,8 +242,7 @@ export class DetailLayer {
         mesh.setMatrixAt(i, m);
         this.landmarks.push({ kind, name, pos: pos.clone().setY(pos.y + 1.4) });
       });
-      mesh.frustumCulled = false;
-      this.group.add(mesh);
+      this.track(mesh);
     }
 
     this.buildRoads(data.roads, toWorld);
@@ -239,8 +275,54 @@ export class DetailLayer {
         if (st.color) mesh.setColorAt(k, st.color);
       });
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      mesh.frustumCulled = false;
-      this.group.add(mesh);
+      this.track(mesh);
+    });
+  }
+
+  private track(mesh: InstancedMesh) {
+    const base = new Float32Array(mesh.count * 3);
+    const m = new Matrix4();
+    for (let i = 0; i < mesh.count; i++) {
+      mesh.getMatrixAt(i, m);
+      base.set([m.elements[12], m.elements[13], m.elements[14]], i * 3);
+    }
+    const shadow = new InstancedBufferAttribute(new Float32Array(mesh.count * 2).fill(1), 2);
+    mesh.geometry.setAttribute('aShadow', shadow);
+    mesh.frustumCulled = false;
+    this.group.add(mesh);
+    this.meshes.push({ mesh, base, shadow });
+  }
+
+  hasShadows(key: number) {
+    return this.shadowCache.has(key);
+  }
+
+  computeShadows(key: number, dir: Vector3, shadowAt: ShadowAt) {
+    if (this.shadowCache.has(key)) return;
+    this.shadowCache.set(
+      key,
+      this.meshes.map(({ base }) => {
+        const out = new Float32Array(base.length / 3);
+        for (let i = 0; i < out.length; i++) out[i] = shadowAt(base[i * 3], base[i * 3 + 1], base[i * 3 + 2], dir);
+        return out;
+      }),
+    );
+  }
+
+  setShadows(from: number, to: number, mix: number) {
+    this.uniforms.uShadowMix.value = mix;
+    const pair = `${from}:${to}`;
+    const a = this.shadowCache.get(from);
+    const b = this.shadowCache.get(to);
+    if (pair === this.shadowPair || !a || !b) return;
+    this.shadowPair = pair;
+    this.meshes.forEach(({ shadow }, k) => {
+      const arr = shadow.array as Float32Array;
+      for (let i = 0; i < a[k].length; i++) {
+        arr[i * 2] = a[k][i];
+        arr[i * 2 + 1] = b[k][i];
+      }
+      shadow.needsUpdate = true;
     });
   }
 
@@ -277,7 +359,8 @@ export class DetailLayer {
     for (const m of this.roadMaterials) m.resolution.set(w, h);
   }
 
-  update(cameraDistance: number, revealCenter: Vector3 | null, dt: number, instant: boolean) {
+  update(cameraDistance: number, revealCenter: Vector3 | null, dt: number, instant: boolean, night = 0) {
+    this.uniforms.uNight.value = night;
     const near = 1 - MathUtils.smoothstep(cameraDistance, 230, 340);
     const u = this.uniforms;
     u.uGrow.value = near;
@@ -286,7 +369,10 @@ export class DetailLayer {
     if (revealCenter || u.uReveal.value > 0) u.uReveal.value = instant ? 5000 : Math.min(5000, u.uReveal.value + dt * 70);
     const roadFade = 1 - MathUtils.smoothstep(cameraDistance, 320, 700);
     this.roads.visible = roadFade > 0.01;
-    this.roadMaterials.forEach((m, i) => (m.opacity = (i ? 0.55 : 0.9) * roadFade));
+    this.roadMaterials.forEach((m, i) => {
+      m.opacity = (i ? 0.55 : 0.9) * roadFade * (1 - night * (i ? 0.35 : 0.1));
+      m.color.lerpColors(this.roadDay[i], this.roadNight, night * 0.85);
+    });
   }
 
   dispose() {

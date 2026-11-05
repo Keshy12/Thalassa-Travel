@@ -135,6 +135,11 @@ const nextLine = (i: number) => {
       </div>
     </div>
 
+    <div class="daychip" data-daychip aria-hidden="true">
+      <i></i>
+      <span data-daychip-label>Late morning</span>
+    </div>
+
     <div class="journey__cue" aria-hidden="true">
       <span>Scroll to begin the journey</span>
       <i></i>
@@ -763,6 +768,45 @@ const nextLine = (i: number) => {
     margin-top: 34px;
   }
 
+  .daychip {
+    position: absolute;
+    right: var(--gutter);
+    bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 14px 7px 9px;
+    border: 1px solid rgb(255 255 255 / 0.14);
+    border-radius: var(--radius-pill);
+    background: rgb(2 34 56 / 0.55);
+    backdrop-filter: blur(8px);
+    color: var(--white);
+    font-size: 0.74rem;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    pointer-events: none;
+  }
+
+  .daychip i {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, #ffe7a3 0 45%, var(--sun-500) 46% 100%);
+    box-shadow: 0 0 12px rgb(242 193 78 / 0.8);
+    transition:
+      background 0.6s,
+      box-shadow 0.6s;
+  }
+
+  .daychip[data-night='true'] i {
+    background: radial-gradient(circle at 65% 35%, transparent 0 38%, #e9eefc 39% 100%);
+    box-shadow: 0 0 10px rgb(200 215 255 / 0.6);
+  }
+
+  .journey.is-static .daychip {
+    display: none;
+  }
+
   .journey__cue {
     position: absolute;
     left: 50%;
@@ -996,7 +1040,8 @@ const nextLine = (i: number) => {
       font-size: 1.7rem;
     }
 
-    .journey__cue {
+    .journey__cue,
+    .daychip {
       display: none;
     }
 

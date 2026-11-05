@@ -1,5 +1,5 @@
 import { DataTexture, ShaderMaterial, Vector2, Vector3, type Texture } from 'three';
-import { DEPTH_MAX, ELEV_MAX, KM_PER_PX, SDF_RANGE, TEX_H, TEX_W } from './projection';
+import { DEPTH_MAX, ELEV_MAX, KM_PER_PX, MAP_H, MAP_W, SDF_RANGE, TEX_H, TEX_W } from './projection';
 
 const common = /* glsl */ `
   uniform sampler2D uHeight;
@@ -47,8 +47,58 @@ const fragmentShader = /* glsl */ `
   uniform vec3 uFocus;
   uniform float uFocusAmt;
   uniform float uFocusRadius;
+  uniform vec3 uSunColor;
+  uniform vec3 uShadeColor;
+  uniform float uNight;
+  uniform float uGlint;
+  uniform float uCloud;
   uniform sampler2D uCover;
   uniform float uCoverAmt;
+  uniform vec2 uMapKm;
+
+  float hash21(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+  }
+
+  float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), u.x), mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x), u.y);
+  }
+
+  float fbm(vec2 p) {
+    float a = 0.5;
+    float v = 0.0;
+    for (int i = 0; i < 4; i++) {
+      v += vnoise(p) * a;
+      p = p * 2.03 + 17.1;
+      a *= 0.5;
+    }
+    return v;
+  }
+
+  float sunShadow(vec2 uv, float h0) {
+    vec2 sunXZ = uLightDir.xz;
+    float fl = length(sunXZ);
+    if (uLightDir.y <= 0.02 || fl < 1e-3) return 1.0;
+    vec2 dir = sunXZ / fl;
+    vec2 duv = vec2(dir.x / uMapKm.x, -dir.y / uMapKm.y);
+    float rise = uLightDir.y / fl;
+    float k = 0.001 * uExag * uRise;
+    float start = h0 * k + 0.05;
+    float s = 0.7;
+    float lit = 1.0;
+    for (int i = 0; i < 22; i++) {
+      float th = max(decodeH(textureLod(uHeight, uv + duv * s, 1.0).r), 0.0) * k;
+      float ray = start + s * rise;
+      lit = min(lit, clamp((ray - th) * 6.0 / s + 0.5, 0.0, 1.0));
+      s *= 1.22;
+    }
+    return lit;
+  }
 
   float landH(vec2 uv) {
     return max(decodeH(texture2D(uHeight, uv).r), 0.0);
@@ -71,7 +121,8 @@ const fragmentShader = /* glsl */ `
     vec2 dy = vec2(0.0, uTexel.y);
     float k = 0.001 * uExag * max(uRise, 0.15) / (2.0 * uTexelKm);
     vec3 n = normalize(vec3((landH(vUv - dx) - landH(vUv + dx)) * k, 1.0, (landH(vUv + dy) - landH(vUv - dy)) * k));
-    float diffuse = clamp(dot(n, uLightDir), 0.0, 1.0);
+    float shadow = sunShadow(vUv, max(h, 0.0));
+    float diffuse = clamp(dot(n, uLightDir), 0.0, 1.0) * mix(0.18, 1.0, shadow);
     float slope = 1.0 - n.y;
 
     float e = clamp(max(h, 0.0) / 2400.0, 0.0, 1.0);
@@ -89,7 +140,7 @@ const fragmentShader = /* glsl */ `
     float hBlur = max(decodeH(textureLod(uHeight, vUv, 4.5).r), 0.0);
     float cavity = clamp((max(h, 0.0) - hBlur) / 450.0, -1.0, 1.0);
     float light = 0.24 + 0.76 * diffuse;
-    vec3 shade = mix(vec3(0.30, 0.40, 0.56), vec3(1.07, 1.04, 0.98), light);
+    vec3 shade = mix(uShadeColor, uSunColor, light);
     landCol *= mix(vec3(1.0), shade, 0.88);
     landCol *= 1.0 + cavity * 0.22;
     landCol = mix(landCol, landCol * 0.8, isoLine(max(h, 0.0) / 250.0) * 0.45 * greece * step(40.0, h) * (1.0 - slope * 0.5));
@@ -102,7 +153,20 @@ const fragmentShader = /* glsl */ `
     seaCol = mix(seaCol, vec3(0.78, 0.91, 0.94), coastGlow * 0.34);
     seaCol = mix(seaCol, seaCol * 1.18 + 0.025, isoLine(-h / 500.0) * 0.28 * step(120.0, -h));
 
+    seaCol *= mix(1.0, 0.72, (1.0 - shadow) * step(0.02, uLightDir.y));
+    seaCol *= mix(vec3(1.0), uSunColor * 0.92, 0.35);
+    vec3 view = normalize(cameraPosition - vWorld);
+    vec2 wp = vWorld.xz * 0.55;
+    float t = uTime * 0.6;
+    vec2 wave = vec2(vnoise(wp + vec2(t, t * 0.4)) - 0.5, vnoise(wp * 1.7 - vec2(t * 0.7, -t * 0.5) + 9.0) - 0.5);
+    vec3 wn = normalize(vec3(wave.x * 0.45, 1.0, wave.y * 0.45));
+    vec3 hv = normalize(uLightDir + view);
+    float sparkle = pow(max(dot(wn, hv), 0.0), 220.0) * 3.2 + pow(max(dot(vec3(0.0, 1.0, 0.0), hv), 0.0), 18.0) * 0.22;
+    seaCol += uSunColor * sparkle * uGlint * step(0.0, uLightDir.y) * shadow;
+
     vec3 col = mix(seaCol, landCol, land);
+    float cloud = smoothstep(0.52, 0.78, fbm(vWorld.xz * 0.012 + vec2(uTime * 0.012, uTime * 0.005))) * uCloud;
+    col *= 1.0 - cloud * 0.3;
     float coast = 1.0 - smoothstep(0.35, 1.35, abs(sdf) / aa);
     col = mix(col, vec3(1.0, 0.985, 0.94), coast * 0.6);
 
@@ -116,6 +180,13 @@ const fragmentShader = /* glsl */ `
       float ring = 1.0 - smoothstep(0.0, fw * 1.6, abs(fd - r));
       col = mix(col, vec3(0.988, 0.824, 0.400), ring * (1.0 - t) * 0.9 * uFocusAmt);
     }
+
+    col = mix(col, col * vec3(0.17, 0.22, 0.38), uNight * 0.86);
+    float built = texture2D(uCover, vUv).g * greece * land;
+    float spark = smoothstep(0.35, 0.95, vnoise(vWorld.xz * 2.4)) * (0.75 + 0.25 * sin(uTime * 3.0 + hash21(floor(vWorld.xz * 2.4)) * 40.0));
+    float city = smoothstep(0.06, 0.55, built);
+    float halo = smoothstep(0.02, 0.35, textureLod(uCover, vUv, 3.0).g) * greece;
+    col += vec3(1.0, 0.74, 0.4) * (city * 0.42 + city * spark * 0.95 + halo * 0.22) * uNight;
 
     float dist = distance(vWorld, cameraPosition);
     float fog = smoothstep(uFogNear, uFogFar, dist);
@@ -158,8 +229,14 @@ export function createTerrainMaterial(height: Texture, masks: Texture, lod: numb
       uFocus: { value: new Vector3() },
       uFocusAmt: { value: 0 },
       uFocusRadius: { value: 24 },
+      uSunColor: { value: new Vector3(1.07, 1.04, 0.98) },
+      uShadeColor: { value: new Vector3(0.3, 0.4, 0.56) },
+      uNight: { value: 0 },
+      uGlint: { value: 0.3 },
+      uCloud: { value: 0.5 },
       uCover: { value: blank },
       uCoverAmt: { value: 0 },
+      uMapKm: { value: new Vector2(MAP_W, MAP_H) },
     },
   });
 }
