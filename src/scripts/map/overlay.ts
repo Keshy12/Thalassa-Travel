@@ -51,6 +51,7 @@ export class Overlay {
   private v = new Vector3();
   private width = 0;
   private height = 0;
+  private barBottom = 0;
   private docked = false;
   private safe: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private contentRect: Rect | null = null;
@@ -83,13 +84,14 @@ export class Overlay {
     this.height = height;
     const stage = this.root.getBoundingClientRect();
     const bar = this.tourbar?.getBoundingClientRect();
-    const barTop = bar ? bar.top - stage.top : height;
+    this.barBottom = bar ? bar.bottom - stage.top : 0;
     const c = this.content?.getBoundingClientRect();
     this.docked = width < 900;
     this.contentRect = c ? { x: c.left - stage.left, y: c.top - stage.top, w: c.width, h: c.height } : null;
     const left = !this.docked && this.contentRect ? this.contentRect.x + this.contentRect.w + 28 : 16;
-    const top = this.docked && this.contentRect ? this.contentRect.y + this.contentRect.h + 12 : 112;
-    this.safe = { x: left, y: top, w: width - 20 - left, h: barTop - 14 - top };
+    const top = this.docked && this.contentRect ? this.contentRect.y + this.contentRect.h + 12 : Math.max(112, this.barBottom + 28);
+    const bottom = height - (this.docked ? 16 : 24);
+    this.safe = { x: left, y: top, w: width - 20 - left, h: bottom - top };
     this.travelerW = 0;
     this.labelW = this.pins.map((p) => p.querySelector<HTMLElement>('.pin__label')?.offsetWidth ?? 80);
     this.sizes = this.groups.map((g) =>
@@ -121,11 +123,12 @@ export class Overlay {
       const bottom = this.safe.y + this.safe.h;
       return { x: 0.06, y: (this.safe.y + 20) / this.height, w: 0.88, h: (bottom - this.safe.y - 40) / this.height };
     }
+    const top = Math.max(0.2, (this.safe.y + 10) / this.height);
     return {
       x: (this.safe.x + 10) / this.width,
-      y: 0.2,
+      y: top,
       w: (this.safe.w - 30) / this.width,
-      h: (this.safe.y + this.safe.h - 30) / this.height - 0.2,
+      h: (this.safe.y + this.safe.h - 20) / this.height - top,
     };
   }
 
@@ -147,7 +150,7 @@ export class Overlay {
   update(f: OverlayFrame) {
     const s = this.state;
     const screen = f.pins.map((p) => this.project(p, f.camera));
-    const hidden = screen.map((p) => !p.visible || p.y > this.safe.y + this.safe.h + 6 || this.insideContent(p.x, p.y));
+    const hidden = screen.map((p) => !p.visible || p.y > this.height - 6 || p.y < this.barBottom + 16 || this.insideContent(p.x, p.y));
     const placed: Rect[] = screen.flatMap((p, i) => (hidden[i] ? [] : [{ x: p.x - 10, y: p.y - 10, w: 20, h: 20 }]));
     const order = screen.map((_, i) => i).sort((a, b) => Number(b === f.activeStop) - Number(a === f.activeStop) || Number(b === f.nextStop) - Number(a === f.nextStop) || a - b);
     for (const i of order) {
@@ -178,6 +181,11 @@ export class Overlay {
         if (i === f.current) btn?.setAttribute('aria-current', 'step');
         else btn?.removeAttribute('aria-current');
       });
+      const item = this.items[f.current];
+      const list = item?.parentElement;
+      if (this.docked && item && list) {
+        list.scrollTo({ left: item.offsetLeft - list.offsetLeft - (list.clientWidth - item.offsetWidth) / 2, behavior: 'smooth' });
+      }
       s.current = f.current;
     }
 
@@ -227,7 +235,7 @@ export class Overlay {
     if (!el) return;
     const s = this.state;
     const p = t && this.project(t.pos, camera);
-    const visible = !!p && p.visible && p.x > 0 && p.x < this.width && p.y > 0 && p.y < this.height;
+    const visible = !!p && p.visible && p.x > 0 && p.x < this.width && p.y > this.barBottom + 21 && p.y < this.height;
     if (visible !== s.traveler) {
       el.classList.toggle('is-visible', visible);
       s.traveler = visible;
