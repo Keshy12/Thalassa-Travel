@@ -1,5 +1,18 @@
 import { animate, motionValue, type AnimationPlaybackControls } from 'motion';
-import { Mesh, MathUtils, PerspectiveCamera, PlaneGeometry, Scene, TextureLoader, Vector3, WebGLRenderer, type Texture } from 'three';
+import {
+  DirectionalLight,
+  Fog,
+  HemisphereLight,
+  Mesh,
+  MathUtils,
+  PerspectiveCamera,
+  PlaneGeometry,
+  Scene,
+  TextureLoader,
+  Vector3,
+  WebGLRenderer,
+  type Texture,
+} from 'three';
 import { asset } from '../../lib/asset';
 import { applyPose, clonePose, flyTo, type Pose } from './camera';
 import { journeyNodes } from './journey';
@@ -9,6 +22,7 @@ import { decodeHeight, lonLatToPx, lonLatToWorld, MAP_H, MAP_W, TEX_H, TEX_W } f
 import { RouteLines } from './routes';
 import { attachSteps } from './steps';
 import { createTerrainMaterial, FOG_HEX } from './terrainMaterial';
+import { disposeVehicleMaterials, HeroVehicle, Traffic } from './vehicles';
 
 export interface MapStop {
   name: string;
@@ -54,7 +68,7 @@ const PANEL_SWITCH = 0.35;
 
 const flightDuration = (a: Pose, b: Pose) =>
   MathUtils.clamp(0.8 + a.target.distanceTo(b.target) / 600 + Math.abs(Math.log(b.distance / a.distance)) * 0.35, 0.9, 1.6);
-const drawDuration = (length: number) => MathUtils.clamp(0.6 + length / 180, 1.2, 3);
+const drawDuration = (length: number) => MathUtils.clamp(1.1 + length / 90, 2, 4.5);
 
 function heightSampler(image: CanvasImageSource) {
   const scale = 0.5;
@@ -124,6 +138,23 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
   const lines = new RouteLines(paths);
   scene.add(lines.group);
 
+  const fog = new Fog(FOG_HEX, 900, 2600);
+  const seaScene = new Scene();
+  const fxScene = new Scene();
+  for (const s of [seaScene, fxScene]) {
+    s.fog = fog;
+    s.add(new HemisphereLight(0xfff6e6, 0x2b4f6e, 1.7));
+    const sun = new DirectionalLight(0xfff0d8, 2.6);
+    sun.position.copy(material.uniforms.uLightDir.value).multiplyScalar(100);
+    s.add(sun);
+  }
+  const traffic = new Traffic(paths);
+  seaScene.add(traffic.sea);
+  fxScene.add(traffic.road);
+  const hero = new HeroVehicle();
+  fxScene.add(hero.group);
+  renderer.autoClear = false;
+
   const nodes = journeyNodes(stops.length);
   const last = stops.length - 1;
   const legStart = paths.reduce<number[]>((acc, p) => [...acc, acc[acc.length - 1] + p.length], [0]);
@@ -177,6 +208,9 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
   };
 
   const tmp = new Vector3();
+  const headA = new Vector3();
+  const headB = new Vector3();
+  let lastDrawn = 0;
   const pose: Pose = clonePose(poses.overview);
   const fromPose: Pose = clonePose(poses.overview);
   const scratch: Pose = clonePose(poses.overview);
@@ -308,15 +342,22 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     const along = leg < paths.length ? d - legStart[leg] : 0;
     lines.setProgress(leg, along);
     let traveler: Traveler | null = null;
+    let heading: Vector3 | null = null;
+    const speed = MathUtils.clamp(Math.abs(d - lastDrawn) / Math.max(dt, 1e-3) / 60, 0, 1);
     if (Math.abs(d - drawTo) > 0.05 && leg < paths.length) {
       const segment = displaySegment(paths[leg], along);
       traveler = {
         pos: pointOn(paths[leg], along, tmp),
-        mode: segment.mode,
+        mode: segmentAt(paths[leg], along).mode,
         title: `${stops[leg].name} → ${stops[leg + 1].name}`,
         meta: `${segment.km} km by ${segment.mode === 'sea' ? 'ferry' : 'road'}`,
       };
+      heading = pointOn(paths[leg], along + 1.5, headA, true).sub(pointOn(paths[leg], along - 1.5, headB, true));
+      if (drawTo < d) heading.negate();
+      if (heading.lengthSq() < 1e-6) heading = null;
+      else heading.normalize();
     }
+    lastDrawn = d;
 
     for (let i = 0; i < last; i++) fills[i] = MathUtils.clamp((d - legStart[i]) / paths[i].length, 0, 1);
     fills[last] = node === nodes.outro ? p : fromNode === nodes.outro ? 1 - p : 0;
@@ -339,14 +380,22 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     lines.group.scale.y = Math.max(riseE, 0.001);
     if (traveler) traveler.pos.y *= riseE;
     lines.setTime(time);
+    fog.near = un.uFogNear.value;
+    fog.far = un.uFogFar.value;
+    traffic.update(reducedMotion ? 0 : dt, reducedMotion ? 0 : time, riseE);
+    hero.update(traveler ? traveler.pos : null, heading, traveler?.mode ?? 'road', pose.distance * 0.034, speed, dt, time);
 
+    renderer.clear();
     renderer.render(scene, camera);
+    renderer.render(seaScene, camera);
+    renderer.clearDepth();
+    renderer.render(fxScene, camera);
     overlay.update({
       camera,
       pins: pinWorld,
       activeStop,
       nextStop: arrived ? -1 : toStop,
-      polaroidStop: activeStop,
+      polaroidStop: Math.abs(d - drawTo) <= 0.05 ? activeStop : -1,
       traveler,
       fills,
       current: shown === nodes.outro ? last : nodes.stopAt(shown),
@@ -426,6 +475,8 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
       window.removeEventListener('pointermove', onPointer);
       window.removeEventListener('scroll', syncLock);
       lines.dispose();
+      traffic.dispose();
+      disposeVehicleMaterials();
       geometry.dispose();
       material.dispose();
       height.dispose();
