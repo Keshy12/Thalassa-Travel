@@ -8,6 +8,7 @@ The hero is a scroll-driven journey over a real-time 3D relief map of Greece (th
 
 - [Astro](https://astro.build) 7, static output, TypeScript
 - [three.js](https://threejs.org) without wrappers, loaded lazily so the page renders before the map
+- [Motion](https://motion.dev) springs for the eased, scroll-linked camera
 - Plain CSS with custom properties. No UI component libraries
 - Self-hosted brand fonts: Marcellus (display) and Montserrat (text), per the brand book
 

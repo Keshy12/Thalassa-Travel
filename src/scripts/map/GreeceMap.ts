@@ -1,3 +1,4 @@
+import { motionValue, springValue } from 'motion';
 import { Mesh, MathUtils, PerspectiveCamera, PlaneGeometry, Scene, TextureLoader, Vector3, WebGLRenderer, type Texture } from 'three';
 import { asset } from '../../lib/asset';
 import { applyPose, clonePose, easeInOutSine, flyTo, lerpAngle, type Pose } from './camera';
@@ -42,6 +43,11 @@ interface Bounds {
 const EXAG = 7;
 const FOV = 30;
 const smooth = MathUtils.smoothstep;
+
+const SCROLL_SPRING = { stiffness: 30, damping: 11, restDelta: 0.0005 };
+const TRACK_PULL = 1.3;
+const TRACK_LAG = 0.12;
+const TRACK_TURN = 20;
 
 function heightSampler(image: CanvasImageSource) {
   const scale = 0.5;
@@ -168,6 +174,8 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
 
   const tmp = new Vector3();
   const tmpSmooth = new Vector3();
+  const ahead = new Vector3();
+  const behind = new Vector3();
   const pose: Pose = clonePose(poses.overview);
 
   const legPose = (i: number, u: number, out: Pose) => {
@@ -175,15 +183,20 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     const b = poses.stops[i + 1];
     const leg = paths[i];
     const e = easeInOutSine(u);
-    pointOn(leg, e * leg.length, tmpSmooth, true);
-    const w = smooth(u, 0, 0.14) * (1 - smooth(u, 0.86, 1));
+    const d = e * leg.length;
+    const w = smooth(u, 0, 0.2) * (1 - smooth(u, 0.8, 1));
+    const pull = TRACK_PULL + Math.min(0.4, leg.km / 500);
+    out.distance = Math.exp(MathUtils.lerp(Math.log(a.distance), Math.log(b.distance), e)) * (1 + (pull - 1) * w);
+    pointOn(leg, d - out.distance * TRACK_LAG, tmpSmooth, true);
     out.target.lerpVectors(a.target, b.target, e).lerp(tmpSmooth, w);
-    const hi = Math.max(a.distance, b.distance);
-    const bump = Math.log(Math.max(1, Math.min(leg.km * 0.7, 560) / hi));
-    const arc = Math.sin(Math.PI * e);
-    out.distance = Math.exp(MathUtils.lerp(Math.log(a.distance), Math.log(b.distance), e) + bump * arc);
-    out.yaw = lerpAngle(a.yaw, b.yaw, e);
-    out.pitch = MathUtils.lerp(a.pitch, b.pitch, e) - Math.min(9, bump * 7) * arc;
+    const span = out.distance * 0.3;
+    pointOn(leg, d - span, behind, true);
+    pointOn(leg, d + span, ahead, true);
+    const side = MathUtils.radToDeg(Math.atan2(ahead.z - behind.z, behind.x - ahead.x));
+    const yaw = lerpAngle(a.yaw, b.yaw, e);
+    const turn = lerpAngle(yaw, side, 1) - yaw;
+    out.yaw = yaw + TRACK_TURN * Math.sin(MathUtils.degToRad(2 * turn)) * w;
+    out.pitch = MathUtils.lerp(a.pitch, b.pitch, e) - 4 * w;
     out.fx = MathUtils.lerp(a.fx, b.fx, e);
     out.fy = MathUtils.lerp(a.fy, b.fy, e);
   };
@@ -248,9 +261,16 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
   measure();
 
   const scrollT = () => MathUtils.clamp((window.scrollY - sectionTop) / scrollable, 0, 1) * timeline.total;
-  let ts = scrollT();
+  const progress = motionValue(scrollT());
+  const eased = reducedMotion ? progress : springValue(progress, SCROLL_SPRING);
+  const onScroll = () => progress.set(scrollT());
+  window.addEventListener('scroll', onScroll, { passive: true });
+  let ts = eased.get();
 
-  const ro = new ResizeObserver(measure);
+  const ro = new ResizeObserver(() => {
+    measure();
+    onScroll();
+  });
   ro.observe(root);
   ro.observe(section);
   const content = root.querySelector('[data-content]');
@@ -281,9 +301,8 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     lastNow = now;
     time += dt;
 
-    const target = scrollT();
-    ts = reducedMotion ? target : ts + (target - ts) * (1 - Math.exp(-dt * 4.5));
-    if (Math.abs(target - ts) < 1e-4) ts = target;
+    const target = progress.get();
+    ts = eased.get();
     const settled = Math.abs(target - ts) < 0.5;
     const { seg, u } = locate(timeline, ts);
     poseAt(seg, u, pose);
@@ -413,7 +432,6 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
 
   const io = new IntersectionObserver(([entry]) => {
     inView = entry.isIntersecting;
-    if (inView) ts = scrollT();
     syncLoop();
   });
   io.observe(root);
@@ -436,6 +454,9 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
       io.disconnect();
       document.removeEventListener('visibilitychange', syncLoop);
       window.removeEventListener('pointermove', onPointer);
+      window.removeEventListener('scroll', onScroll);
+      eased.destroy();
+      progress.destroy();
       lines.dispose();
       geometry.dispose();
       material.dispose();

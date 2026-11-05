@@ -15,7 +15,9 @@ const APPROACH = 1.1;
 const DWELL = 1.4;
 const OUTRO = 1.2;
 
-export const legUnits = (km: number) => Math.min(3, Math.max(1.3, 0.9 + km / 240));
+const LEG_PACE = 1.5;
+
+export const legUnits = (km: number) => LEG_PACE * Math.min(3, Math.max(1.3, 0.9 + km / 240));
 
 export function buildTimeline(legKm: number[]): Timeline {
   const segments: Segment[] = [];
