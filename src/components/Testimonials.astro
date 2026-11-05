@@ -1,21 +1,22 @@
 ---
 import Icon from './Icon.astro';
+import Laurels from './Laurels.astro';
 
 const quotes = [
   {
     text: 'Standing in front of the Parthenon and suddenly seeing it painted, with its sculptures back in place, is something I will never forget.',
     name: 'Anna K.',
-    trip: 'Classical Mainland',
+    trip: 'Classical Peloponnese',
   },
   {
     text: 'Small group, a guide who knew every stone, and every ferry and transfer simply worked. We only had to enjoy it.',
     name: 'Mark & Julia T.',
-    trip: 'Aegean Islands',
+    trip: 'Ionian Escape',
   },
   {
-    text: 'Our kids walked through Knossos wide-eyed. The myths finally made sense to them, and honestly to us too.',
+    text: 'Our kids raced each other down the ancient stadium at Olympia. The myths finally made sense to them, and honestly to us too.',
     name: 'Sofia R.',
-    trip: 'The Grand Odyssey',
+    trip: 'The Western Odyssey',
   },
 ];
 ---
@@ -24,7 +25,9 @@ const quotes = [
   <div class="container">
     <header class="section-head section-head--center" data-reveal>
       <span class="eyebrow">Traveller stories</span>
-      <h2 id="stories-title">Remembered long after the tan fades</h2>
+      <Laurels class="stories__laurels">
+        <h2 id="stories-title">Remembered long after the tan fades</h2>
+      </Laurels>
     </header>
     <ul class="stories__grid">
       {
@@ -59,6 +62,12 @@ const quotes = [
 <style>
   .stories {
     background: var(--paper);
+  }
+
+  .stories :global(.stories__laurels) {
+    --laurel-size: clamp(84px, 9vw, 150px);
+    --laurel-gap: clamp(14px, 3vw, 44px);
+    --laurel-color: var(--sun-600);
   }
 
   .stories__grid {

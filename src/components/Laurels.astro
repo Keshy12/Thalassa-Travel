@@ -1,0 +1,35 @@
+---
+import laurel from '../data/laurel.json';
+
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<span class:list={['laurels', className]}>
+  <svg class="laurels__branch" viewBox={laurel.left.viewBox} aria-hidden="true" focusable="false"><path d={laurel.left.d}></path></svg>
+  <span class="laurels__content"><slot /></span>
+  <svg class="laurels__branch" viewBox={laurel.right.viewBox} aria-hidden="true" focusable="false"><path d={laurel.right.d}></path></svg>
+</span>
+
+<style>
+  .laurels {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--laurel-gap, 0.9em);
+  }
+
+  .laurels__branch {
+    flex: none;
+    width: auto;
+    height: var(--laurel-size, 2.8em);
+    fill: var(--laurel-color, var(--sun-600));
+  }
+
+  .laurels__content {
+    min-width: 0;
+  }
+</style>

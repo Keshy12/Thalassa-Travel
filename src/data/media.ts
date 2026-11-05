@@ -13,30 +13,30 @@ export const media = {
     placeholder('athens-2', 'The Temple of Hephaestus in the Ancient Agora'),
     placeholder('athens-3', 'Lycabettus Hill above Athens at dusk'),
   ],
-  delphi: [
-    placeholder('delphi-1', 'The Tholos of Athena Pronaia at Delphi'),
-    placeholder('delphi-2', 'The ancient theatre of Delphi below the cliffs of Mount Parnassus'),
-    placeholder('delphi-3', 'Olive groves running down to the Gulf of Corinth'),
+  patras: [
+    placeholder('patras-1', 'The Rio–Antirrio Bridge across the Gulf of Corinth'),
+    placeholder('patras-2', 'The Church of Saint Andrew in Patras'),
+    placeholder('patras-3', 'Patras Castle above the city and the harbour'),
   ],
-  meteora: [
-    placeholder('meteora-1', 'A monastery on top of a sandstone pillar at Meteora'),
-    placeholder('meteora-2', 'Meteora pillars rising out of the morning mist'),
-    placeholder('meteora-3', 'Lit monasteries of Meteora at night'),
+  chlemoutsi: [
+    placeholder('chlemoutsi-1', 'Chlemoutsi Castle on its hill above the Ionian Sea'),
+    placeholder('chlemoutsi-2', 'The gate of Chlemoutsi Castle'),
+    placeholder('chlemoutsi-3', 'Sunset over Kyllini harbour with the ferry to Zakynthos'),
   ],
-  santorini: [
-    placeholder('santorini-1', 'Blue domes and white houses of Oia, Santorini'),
-    placeholder('santorini-2', 'Sunset over the Santorini caldera'),
-    placeholder('santorini-3', 'A windmill above the caldera'),
+  turtleBay: [
+    placeholder('turtle-1', 'A loggerhead turtle swimming in Laganas Bay'),
+    placeholder('turtle-2', 'Marathonisi, the Turtle Island, in Laganas Bay'),
+    placeholder('turtle-3', 'Protected turtle nests on Laganas beach'),
   ],
-  crete: [
-    placeholder('crete-1', 'The restored north portico of the Palace of Knossos'),
-    placeholder('crete-2', 'The turquoise lagoon at Balos, Crete'),
-    placeholder('crete-3', 'The Venetian lighthouse of Chania harbour'),
+  olympia: [
+    placeholder('olympia-1', 'The vaulted tunnel into the ancient stadium of Olympia'),
+    placeholder('olympia-2', 'The Temple of Hera at Olympia'),
+    placeholder('olympia-3', 'Columns of the palaestra at Olympia'),
   ],
-  rhodes: [
-    placeholder('rhodes-1', 'The medieval walls of Rhodes Old Town'),
-    placeholder('rhodes-2', 'The Acropolis of Lindos above the bay'),
-    placeholder('rhodes-3', 'Windmills on the mole of Mandraki harbour'),
+  barbalekou: [
+    placeholder('barbalekou-1', 'Barbalekou Tower among olive trees'),
+    placeholder('barbalekou-2', 'Olive groves in the hills of Trifylia'),
+    placeholder('barbalekou-3', 'Barbalekou Tower at dusk'),
   ],
   arToday: placeholder('ar-today', 'The Parthenon today, without its roof and pediment sculptures'),
   arReconstructed: placeholder('ar-reconstructed', 'The Parthenon reconstructed with its sculptures and original painted colours'),

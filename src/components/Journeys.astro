@@ -1,16 +1,10 @@
 ---
 import { destinations } from '../data/destinations';
 import { journeys } from '../data/journeys';
-import outline from '../data/greece-outline.json';
+import { outline, toOutline } from '../lib/outline';
 import Icon from './Icon.astro';
+import Laurels from './Laurels.astro';
 
-const WORLD = 256 * 2 ** 8;
-const toOutline = (lon: number, lat: number) => {
-  const s = Math.sin((lat * Math.PI) / 180);
-  const x = ((lon + 180) / 360) * WORLD;
-  const y = (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * WORLD;
-  return [(x - outline.projection.originX) * outline.projection.scale, (y - outline.projection.originY) * outline.projection.scale];
-};
 const byId = Object.fromEntries(destinations.map((d) => [d.id, d]));
 const routePath = (ids: string[]) =>
   ids
@@ -30,7 +24,7 @@ const euro = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR'
   </svg>
   <div class="container">
     <header class="section-head section-head--center" data-reveal>
-      <span class="eyebrow">Journeys</span>
+      <Laurels class="journeys__laurels"><span class="eyebrow journeys__eyebrow">Journeys</span></Laurels>
       <h2>Choose your chapter of Greece</h2>
       <p>Three itineraries, each led by a local guide and paced so you have time to linger. All can be tailored to your dates.</p>
     </header>
@@ -95,7 +89,7 @@ const euro = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR'
 </section>
 
 <script>
-  document.querySelectorAll<HTMLAnchorElement>('[data-journey]').forEach((a) =>
+  document.querySelectorAll<HTMLAnchorElement>('a[data-journey]').forEach((a) =>
     a.addEventListener('click', () => {
       const select = document.querySelector<HTMLSelectElement>('#contact-journey');
       if (select && a.dataset.journey) select.value = a.dataset.journey;
@@ -106,6 +100,15 @@ const euro = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR'
 <style>
   .journeys {
     background: var(--paper);
+  }
+
+  .journeys :global(.journeys__laurels) {
+    --laurel-size: 46px;
+    --laurel-gap: 14px;
+  }
+
+  .journeys__eyebrow::before {
+    display: none;
   }
 
   .journeys__defs {

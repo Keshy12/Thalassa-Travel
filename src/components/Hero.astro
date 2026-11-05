@@ -1,20 +1,27 @@
 ---
 import { destinations } from '../data/destinations';
-import outline from '../data/greece-outline.json';
+import { journeys } from '../data/journeys';
+import { outline, toOutline } from '../lib/outline';
+import route from '../data/route.json';
+import { buildTimeline } from '../scripts/map/journey';
+import Icon from './Icon.astro';
+import Laurels from './Laurels.astro';
 
-const WORLD = 256 * 2 ** 8;
-const toOutline = (lon: number, lat: number) => {
-  const s = Math.sin((lat * Math.PI) / 180);
-  const x = ((lon + 180) / 360) * WORLD;
-  const y = (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * WORLD;
-  return [(x - outline.projection.originX) * outline.projection.scale, (y - outline.projection.originY) * outline.projection.scale];
-};
 const pad = (n: number) => String(n).padStart(2, '0');
+const timeline = buildTimeline(route.legs.map((l) => l.km));
+const odyssey = journeys.find((j) => j.id === 'odyssey')!;
+const km = new Intl.NumberFormat('en-GB');
+const nextLine = (i: number) => {
+  const leg = route.legs[i];
+  if (!leg) return 'Final stop of the journey';
+  const modes = [...new Set(leg.segments.map((s) => (s.mode === 'sea' ? 'ferry' : 'road')))];
+  return `Next: ${destinations[i + 1].name} · ${km.format(leg.km)} km by ${modes.join(' and ')}`;
+};
 ---
 
-<section class="hero" id="top" data-hero>
-  <div class="hero__stage" data-stage>
-    <svg class="hero__fallback" viewBox={outline.viewBox} aria-hidden="true">
+<section class="journey" id="top" data-hero style={`--units:${timeline.total.toFixed(3)}`}>
+  <div class="journey__stage" data-stage>
+    <svg class="journey__fallback" viewBox={outline.viewBox} aria-hidden="true">
       <path d={outline.d}></path>
       {
         destinations.map((d) => {
@@ -23,16 +30,16 @@ const pad = (n: number) => String(n).padStart(2, '0');
         })
       }
     </svg>
-    <canvas class="hero__canvas" data-canvas aria-hidden="true"></canvas>
-    <div class="hero__scrim" aria-hidden="true"></div>
+    <canvas class="journey__canvas" data-canvas aria-hidden="true"></canvas>
+    <div class="journey__scrim" aria-hidden="true"></div>
 
-    <svg class="hero__links" data-links aria-hidden="true">
+    <svg class="journey__links" data-links aria-hidden="true">
       <path></path>
       <path></path>
       <path></path>
     </svg>
 
-    <div class="hero__pins">
+    <div class="journey__layer">
       {
         destinations.map((d, i) => (
           <button class="pin" type="button" data-pin={i} data-goto={i} tabindex="-1" aria-hidden="true">
@@ -43,18 +50,26 @@ const pad = (n: number) => String(n).padStart(2, '0');
       }
     </div>
 
-    <div class="hero__cards" aria-hidden="true">
+    <div class="traveler" data-traveler data-mode="road" aria-hidden="true">
+      <span class="traveler__icon">
+        <Icon name="car" size={22} class="traveler__car" />
+        <Icon name="ship" size={22} class="traveler__ship" />
+      </span>
+      <span class="traveler__label">
+        <strong data-traveler-title></strong>
+        <span data-traveler-meta></span>
+      </span>
+    </div>
+
+    <div class="journey__layer" aria-hidden="true">
       {
         destinations.map((d, i) => (
-          <div class="stop-cards" data-stop-cards={i}>
+          <div class="polaroids" data-polaroids={i}>
             {d.photos.map((p, j) => (
-              <figure class="map-card" data-card style={`--i:${j}`}>
-                <div class="map-card__inner">
-                  <img src={p.src} alt="" width="1200" height="900" loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
-                  <figcaption>
-                    <span class="map-card__num">{pad(j + 1)}</span>
-                    {p.caption}
-                  </figcaption>
+              <figure class="polaroid" data-polaroid style={`--i:${j}`}>
+                <div class="polaroid__inner">
+                  <img src={p.src} alt="" width="1200" height="900" loading={i < 2 ? 'eager' : 'lazy'} decoding="async" />
+                  <figcaption>{p.caption}</figcaption>
                 </div>
               </figure>
             ))}
@@ -63,34 +78,78 @@ const pad = (n: number) => String(n).padStart(2, '0');
       }
     </div>
 
-    <div class="container hero__inner">
-      <div class="hero__content" data-content>
-        <p class="eyebrow hero__eyebrow">Guided journeys across Greece</p>
-        <h1>Follow the sea into the stories of Greece</h1>
-        <p class="hero__lead">
-          Small-group trips from Athens to the islands, led by local experts, with an AR device that shows ancient sites as
-          they once stood.
-        </p>
-        <div class="hero__ctas">
-          <a class="btn btn--primary" href="#journeys">
-            Explore journeys
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"
-              ><path d="M5 12h14M13 6l6 6-6 6"></path></svg
-            >
-          </a>
-          <a class="btn btn--ghost" href="#destinations">See destinations</a>
+    <div class="container journey__inner">
+      <div class="journey__panels" data-content>
+        <div class="panel panel--intro is-active" data-panel="intro">
+          <p class="eyebrow panel__eyebrow">Guided journeys across Greece</p>
+          <h1>Follow the sea into the stories of Greece</h1>
+          <p class="panel__lead">
+            Small-group trips from Athens across the Peloponnese to Zakynthos, led by local experts, with an AR device that shows
+            ancient sites as they once stood.
+          </p>
+          <div class="panel__ctas">
+            <a class="btn btn--primary" href="#journeys">
+              Explore journeys
+              <Icon name="arrow" size={18} />
+            </a>
+            <a class="btn btn--ghost" href="#destinations">See destinations</a>
+          </div>
+        </div>
+
+        {
+          destinations.map((d, i) => (
+            <article class="panel panel--stop" data-panel={`stop-${i}`} inert>
+              <p class="eyebrow panel__eyebrow">
+                Stop {pad(i + 1)} · {d.region}
+              </p>
+              <h2>{d.name}</h2>
+              <p class="panel__tagline">{d.tagline}</p>
+              <ul class="panel__tags">
+                {d.highlights.map((h) => (
+                  <li>{h}</li>
+                ))}
+              </ul>
+              <p class="panel__next">{nextLine(i)}</p>
+            </article>
+          ))
+        }
+
+        <div class="panel panel--outro" data-panel="outro" inert>
+          <Laurels class="panel__crest">
+            <span class="panel__crest-num">{destinations.length}</span>
+            <span class="panel__crest-label">destinations</span>
+          </Laurels>
+          <p class="eyebrow panel__eyebrow">{odyssey.name}</p>
+          <h2>One route, a whole story of Greece</h2>
+          <ul class="panel__stats">
+            <li><strong>{odyssey.days}</strong> days</li>
+            <li><strong>{km.format(route.totals.road)}</strong> km by road</li>
+            <li><strong>{km.format(route.totals.sea)}</strong> km by ferry</li>
+          </ul>
+          <div class="panel__ctas">
+            <a class="btn btn--primary" href="#contact" data-journey={odyssey.id}>
+              Plan this journey
+              <Icon name="arrow" size={18} />
+            </a>
+            <a class="btn btn--ghost" href="#journeys">All journeys</a>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="hero__tourbar" data-tourbar>
+    <div class="journey__cue" aria-hidden="true">
+      <span>Scroll to begin the journey</span>
+      <i></i>
+    </div>
+
+    <div class="journey__bar" data-tourbar>
       <div class="container tourbar">
-        <p class="tourbar__title">On the map</p>
+        <p class="tourbar__title">The route</p>
         <ol class="tourbar__list">
           {
             destinations.map((d, i) => (
               <li class="tourbar__item" data-tour-item={i}>
-                <button type="button" data-goto={i} aria-label={`Show ${d.name} on the map`}>
+                <button type="button" data-goto={i} aria-label={`Go to ${d.name}`}>
                   <span class="tourbar__num">{pad(i + 1)}</span>
                   <span class="tourbar__name">{d.name}</span>
                   <span class="tourbar__bar" aria-hidden="true">
@@ -101,10 +160,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
             ))
           }
         </ol>
-        <button class="tourbar__pause" type="button" data-pause aria-pressed="false">
-          <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h3v14H8zM13 5h3v14h-3z"></path></svg>
-          <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"></path></svg>
-          <span class="visually-hidden" data-pause-label>Pause map tour</span>
+        <button class="tourbar__skip" type="button" data-skip>
+          Skip
+          <Icon name="arrowDown" size={16} />
         </button>
       </div>
     </div>
@@ -117,24 +175,33 @@ const pad = (n: number) => String(n).padStart(2, '0');
 </script>
 
 <style>
-  .hero {
+  .journey {
+    --unit: 30svh;
     position: relative;
+    height: calc(100svh + var(--units, 21.6) * var(--unit));
     background: #03304f;
     color: var(--white);
   }
 
-  .hero__stage {
-    position: relative;
-    height: 100svh;
-    min-height: 680px;
-    max-height: 1100px;
-    overflow: hidden;
-    isolation: isolate;
-    background:
-      radial-gradient(120% 90% at 70% 55%, #0a4a73 0%, #03304f 55%, #022640 100%);
+  .journey.is-static {
+    height: auto;
   }
 
-  .hero__canvas {
+  .journey__stage {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    overflow: hidden;
+    isolation: isolate;
+    background: radial-gradient(120% 90% at 70% 55%, #0a4a73 0%, #03304f 55%, #022640 100%);
+  }
+
+  .journey.is-static .journey__stage {
+    position: relative;
+    min-height: 680px;
+  }
+
+  .journey__canvas {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -143,11 +210,11 @@ const pad = (n: number) => String(n).padStart(2, '0');
     transition: opacity 1.4s var(--ease-out);
   }
 
-  .hero__stage.is-ready .hero__canvas {
+  .journey__stage.is-ready .journey__canvas {
     opacity: 1;
   }
 
-  .hero__fallback {
+  .journey__fallback {
     position: absolute;
     right: 4%;
     top: 14%;
@@ -159,42 +226,42 @@ const pad = (n: number) => String(n).padStart(2, '0');
     transition: opacity 1s var(--ease-out);
   }
 
-  .hero__fallback circle {
+  .journey__fallback circle {
     fill: var(--sun-500);
     stroke: var(--white);
     stroke-width: 3;
   }
 
-  .hero__stage.is-ready .hero__fallback {
+  .journey__stage.is-ready .journey__fallback {
     opacity: 0;
   }
 
-  .hero__scrim {
+  .journey__scrim {
     position: absolute;
     inset: 0;
     pointer-events: none;
     background:
       linear-gradient(90deg, rgb(2 34 56 / 0.9) 0%, rgb(2 34 56 / 0.72) 30%, rgb(2 34 56 / 0.3) 46%, rgb(2 34 56 / 0) 60%),
-      linear-gradient(180deg, rgb(2 34 56 / 0.55) 0%, rgb(2 34 56 / 0) 22%),
+      linear-gradient(180deg, rgb(2 34 56 / 0.5) 0%, rgb(2 34 56 / 0) 20%),
       linear-gradient(0deg, rgb(2 34 56 / 0.7) 0%, rgb(2 34 56 / 0) 24%);
   }
 
-  .hero__links {
+  .journey__links {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.5s;
+    transition: opacity 0.4s;
   }
 
-  .hero__links.is-visible {
+  .journey__links.is-visible {
     opacity: 1;
-    transition-delay: 0.25s;
+    transition-delay: 0.35s;
   }
 
-  .hero__links path {
+  .journey__links path {
     fill: none;
     stroke: rgb(255 255 255 / 0.85);
     stroke-width: 1.4;
@@ -202,8 +269,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     stroke-linecap: round;
   }
 
-  .hero__pins,
-  .hero__cards {
+  .journey__layer {
     position: absolute;
     inset: 0;
     pointer-events: none;
@@ -213,9 +279,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
     position: absolute;
     left: 0;
     top: 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    width: 0;
+    height: 0;
     padding: 0;
     border: 0;
     background: none;
@@ -231,10 +296,11 @@ const pad = (n: number) => String(n).padStart(2, '0');
   }
 
   .pin__dot {
-    position: relative;
+    position: absolute;
+    left: -7px;
+    top: -7px;
     width: 14px;
     height: 14px;
-    margin: -7px 0 0 -7px;
     border: 2.5px solid var(--white);
     border-radius: 50%;
     background: var(--sun-500);
@@ -252,23 +318,39 @@ const pad = (n: number) => String(n).padStart(2, '0');
   }
 
   .pin__label {
-    margin-top: -7px;
+    position: absolute;
+    top: 0;
+    left: 14px;
     padding: 4px 10px;
+    transform: translateY(-50%);
     border-radius: var(--radius-pill);
-    background: rgb(0 42 67 / 0.62);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background: var(--blue-900);
+    box-shadow: 0 4px 14px -6px rgb(0 0 0 / 0.5);
     font-size: 0.78rem;
     font-weight: 600;
     letter-spacing: 0.04em;
     white-space: nowrap;
     transition:
+      opacity 0.25s,
       background-color 0.3s,
-      color 0.3s,
-      transform 0.4s var(--ease-out);
+      color 0.3s;
   }
 
-  .pin:hover .pin__label {
+  .pin.is-left .pin__label {
+    left: auto;
+    right: 14px;
+  }
+
+  .pin.is-quiet .pin__label {
+    opacity: 0;
+  }
+
+  .pin.is-quiet:hover .pin__label {
+    opacity: 1;
+  }
+
+  .pin:hover .pin__label,
+  .pin.is-next .pin__label {
     background: var(--white);
     color: var(--blue-800);
   }
@@ -278,7 +360,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
   }
 
   .pin.is-active .pin__dot::after {
-    animation: pin-pulse 2s var(--ease-out) infinite;
+    animation: pulse 2s var(--ease-out) infinite;
   }
 
   .pin.is-active .pin__label {
@@ -290,7 +372,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     letter-spacing: 0.02em;
   }
 
-  @keyframes pin-pulse {
+  @keyframes pulse {
     from {
       opacity: 1;
       transform: scale(0.6);
@@ -301,19 +383,93 @@ const pad = (n: number) => String(n).padStart(2, '0');
     }
   }
 
-  .stop-cards {
+  .traveler {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s;
+    will-change: transform;
+  }
+
+  .traveler.is-visible {
+    opacity: 1;
+  }
+
+  .traveler__icon {
+    position: relative;
+    display: grid;
+    flex: none;
+    width: 42px;
+    height: 42px;
+    margin: -21px 0 0 -21px;
+    place-items: center;
+    border: 2.5px solid var(--white);
+    border-radius: 50%;
+    background: var(--sun-500);
+    color: var(--blue-900);
+    box-shadow: 0 6px 18px rgb(0 27 46 / 0.5);
+  }
+
+  .traveler__icon::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border: 2px solid rgb(242 193 78 / 0.8);
+    border-radius: 50%;
+    animation: pulse 1.8s var(--ease-out) infinite;
+  }
+
+  .traveler__icon :global(svg) {
+    grid-area: 1 / 1;
+  }
+
+  .traveler[data-mode='road'] :global(.traveler__ship),
+  .traveler[data-mode='sea'] :global(.traveler__car) {
+    display: none;
+  }
+
+  .traveler__label {
+    display: grid;
+    margin-top: -21px;
+    padding: 7px 13px 8px;
+    border-radius: 12px;
+    background: var(--paper);
+    color: var(--blue-900);
+    box-shadow: 0 10px 26px -12px rgb(0 27 46 / 0.7);
+    line-height: 1.25;
+    white-space: nowrap;
+  }
+
+  .traveler__label strong {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 400;
+  }
+
+  .traveler__label span {
+    color: var(--ink-mute);
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .polaroids {
     position: absolute;
     inset: 0;
     visibility: hidden;
-    transition: visibility 0s 0.6s;
+    transition: visibility 0s 0.5s;
   }
 
-  .stop-cards.is-visible {
+  .polaroids.is-visible {
     visibility: visible;
     transition: visibility 0s;
   }
 
-  .map-card {
+  .polaroid {
     position: absolute;
     left: 0;
     top: 0;
@@ -321,95 +477,258 @@ const pad = (n: number) => String(n).padStart(2, '0');
     will-change: transform;
   }
 
-  .map-card__inner {
-    padding: 8px 8px 0;
-    border-radius: 16px;
-    background: var(--paper);
+  .polaroid__inner {
+    position: relative;
+    padding: 4.5% 4.5% 0;
+    border-radius: 3px;
+    background: #fffdf8;
     box-shadow:
-      0 2px 6px rgb(0 27 46 / 0.18),
-      0 30px 60px -24px rgb(0 27 46 / 0.7);
-    color: var(--blue-900);
+      0 1px 2px rgb(0 0 0 / 0.25),
+      0 26px 50px -20px rgb(0 20 35 / 0.75);
     opacity: 0;
-    transform: translateY(18px) scale(0.94);
+    transform: translateY(46px) scale(0.35) rotate(-16deg);
     transition:
-      opacity 0.45s var(--ease-out),
-      transform 0.45s var(--ease-out);
+      opacity 0.25s ease,
+      transform 0.35s ease;
   }
 
-  .stop-cards.is-visible .map-card__inner {
+  .polaroid__inner::before {
+    content: '';
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    width: 38%;
+    height: 22px;
+    background: rgb(247 216 138 / 0.82);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+    transform: translateX(-50%) rotate(-3deg);
+  }
+
+  .polaroids.is-visible .polaroid__inner {
     opacity: 1;
     transform: none;
     transition:
-      opacity 0.8s var(--ease-out) calc(var(--i) * 140ms + 120ms),
-      transform 0.9s var(--ease-out) calc(var(--i) * 140ms + 120ms);
+      opacity 0.3s ease calc(var(--i) * 160ms + 60ms),
+      transform 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--i) * 160ms + 60ms);
   }
 
-  .map-card img {
+  .polaroid img {
     width: 100%;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 1;
     object-fit: cover;
-    border-radius: 10px;
     background: var(--blue-100);
   }
 
-  .map-card figcaption {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    padding: 11px 4px 13px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
-  .map-card__num {
-    color: var(--sun-600);
+  .polaroid figcaption {
+    padding: 0.8em 0.4em 1.05em;
+    color: var(--blue-900);
     font-family: var(--font-display);
-    font-size: 0.95rem;
-    font-weight: 400;
+    font-size: 0.98rem;
+    line-height: 1.2;
+    text-align: center;
   }
 
-  .hero__inner {
+  .journey__inner {
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
+    padding-block: 110px 120px;
     pointer-events: none;
   }
 
-  .hero__content {
+  .journey__panels {
+    display: grid;
     width: min(100%, 560px);
-    padding-top: 40px;
-    pointer-events: auto;
   }
 
-  .hero__eyebrow {
+  .panel {
+    grid-area: 1 / 1;
+    align-self: center;
+    opacity: 0;
+    transform: translateY(18px);
+    visibility: hidden;
+    pointer-events: auto;
+    transition:
+      opacity 0.45s var(--ease-out),
+      transform 0.55s var(--ease-out),
+      visibility 0s 0.55s;
+  }
+
+  .panel.is-active {
+    opacity: 1;
+    transform: none;
+    visibility: visible;
+    transition:
+      opacity 0.7s var(--ease-out) 0.15s,
+      transform 0.8s var(--ease-out) 0.15s,
+      visibility 0s;
+  }
+
+  .panel__eyebrow {
     color: var(--sun-300);
   }
 
-  .hero h1 {
-    margin: 22px 0 22px;
+  .panel h1 {
+    margin: 22px 0;
     color: var(--white);
     font-size: clamp(2.6rem, 1.5rem + 3.4vw, 4.5rem);
     line-height: 1.04;
     text-shadow: 0 2px 30px rgb(0 27 46 / 0.35);
   }
 
-  .hero__lead {
+  .panel h2 {
+    margin: 16px 0 14px;
+    color: var(--white);
+    font-size: clamp(2.6rem, 1.6rem + 3.6vw, 4.8rem);
+    line-height: 1;
+  }
+
+  .panel--outro h2 {
+    font-size: clamp(2.2rem, 1.4rem + 2.6vw, 3.6rem);
+    line-height: 1.06;
+  }
+
+  .panel__lead {
     max-width: 30em;
     color: rgb(255 255 255 / 0.84);
     font-size: var(--step-1);
     line-height: 1.6;
   }
 
-  .hero__ctas {
+  .panel__tagline {
+    max-width: 22em;
+    color: rgb(255 255 255 / 0.88);
+    font-family: var(--font-display);
+    font-size: var(--step-2);
+    line-height: 1.3;
+  }
+
+  .panel__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 22px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .panel__tags li {
+    padding: 6px 13px;
+    border: 1px solid rgb(255 255 255 / 0.28);
+    border-radius: var(--radius-pill);
+    color: var(--white);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .panel__next {
+    margin-top: 26px;
+    color: var(--sun-300);
+    font-size: 0.85rem;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+  }
+
+  .panel :global(.panel__crest) {
+    display: flex;
+    width: fit-content;
+    --laurel-size: 92px;
+    --laurel-gap: 10px;
+    --laurel-color: var(--sun-500);
+    margin-bottom: 18px;
+  }
+
+  .panel__crest-num,
+  .panel__crest-label {
+    display: block;
+    text-align: center;
+  }
+
+  .panel__crest-num {
+    color: var(--white);
+    font-family: var(--font-display);
+    font-size: 3rem;
+    line-height: 1;
+  }
+
+  .panel__crest-label {
+    margin-top: 4px;
+    color: var(--sun-300);
+    font-size: 0.66rem;
+    font-weight: 650;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .panel__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 34px;
+    margin: 22px 0 0;
+    padding: 0;
+    list-style: none;
+    color: rgb(255 255 255 / 0.75);
+    font-size: 0.9rem;
+  }
+
+  .panel__stats strong {
+    display: block;
+    color: var(--white);
+    font-family: var(--font-display);
+    font-size: 2.2rem;
+    font-weight: 400;
+    line-height: 1.1;
+  }
+
+  .panel__ctas {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
     margin-top: 34px;
   }
 
-  .hero__tourbar {
+  .journey__cue {
+    position: absolute;
+    left: 50%;
+    bottom: 112px;
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+    color: rgb(255 255 255 / 0.82);
+    font-size: 0.7rem;
+    font-weight: 650;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    opacity: var(--intro, 1);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .journey__cue i {
+    width: 2px;
+    height: 40px;
+    background: linear-gradient(var(--sun-500), transparent);
+    transform-origin: top;
+    animation: cue 1.8s var(--ease-in-out) infinite;
+  }
+
+  @keyframes cue {
+    0% {
+      opacity: 1;
+      transform: scaleY(0);
+    }
+    70% {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+    100% {
+      opacity: 0;
+      transform: scaleY(1);
+    }
+  }
+
+  .journey__bar {
     position: absolute;
     inset: auto 0 0;
     padding-bottom: 22px;
@@ -460,9 +779,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
   }
 
   .tourbar__num {
+    color: var(--sun-500);
     font-family: var(--font-display);
     font-size: 0.85rem;
-    color: var(--sun-500);
   }
 
   .tourbar__name {
@@ -487,52 +806,34 @@ const pad = (n: number) => String(n).padStart(2, '0');
     transform-origin: left;
   }
 
-  .tourbar__item.is-active .tourbar__bar {
-    background: rgb(255 255 255 / 0.35);
-  }
-
-  .tourbar__pause {
-    display: grid;
+  .tourbar__skip {
+    display: inline-flex;
     flex: none;
-    width: 44px;
-    height: 44px;
-    place-items: center;
-    border: 1px solid rgb(255 255 255 / 0.3);
-    border-radius: 50%;
-    background: rgb(0 42 67 / 0.4);
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 1px solid rgb(255 255 255 / 0.32);
+    border-radius: var(--radius-pill);
+    background: none;
     color: var(--white);
+    font-size: 0.85rem;
+    font-weight: 600;
     transition:
       background-color 0.25s,
-      border-color 0.25s;
+      border-color 0.25s,
+      color 0.25s;
   }
 
-  .tourbar__pause[hidden] {
-    display: none;
-  }
-
-  .tourbar__pause:hover {
+  .tourbar__skip:hover {
     border-color: var(--white);
-    background: rgb(255 255 255 / 0.12);
+    background: var(--white);
+    color: var(--blue-900);
   }
 
-  .tourbar__pause svg {
-    grid-area: 1 / 1;
-    width: 18px;
-    height: 18px;
-    fill: currentColor;
-  }
-
-  .tourbar__pause .icon-play,
-  .tourbar__pause[aria-pressed='true'] .icon-pause {
-    display: none;
-  }
-
-  .tourbar__pause[aria-pressed='true'] .icon-play {
-    display: block;
-  }
-
-  .hero__stage.is-static .tourbar__pause,
-  .hero__stage.is-static .tourbar__bar {
+  .journey.is-static .tourbar__bar,
+  .journey.is-static .tourbar__skip,
+  .journey.is-static .journey__cue {
     display: none;
   }
 
@@ -543,46 +844,73 @@ const pad = (n: number) => String(n).padStart(2, '0');
   }
 
   @media (max-width: 900px) {
-    .hero__stage {
-      min-height: 760px;
-    }
-
-    .hero__scrim {
+    .journey__scrim {
       background:
-        linear-gradient(180deg, rgb(2 34 56 / 0.85) 0%, rgb(2 34 56 / 0.55) 42%, rgb(2 34 56 / 0) 62%),
+        linear-gradient(180deg, rgb(2 34 56 / 0.88) 0%, rgb(2 34 56 / 0.6) 40%, rgb(2 34 56 / 0) 60%),
         linear-gradient(0deg, rgb(2 34 56 / 0.75) 0%, rgb(2 34 56 / 0) 26%);
     }
 
-    .hero__inner {
+    .journey__inner {
       align-items: flex-start;
-      padding-top: 118px;
+      padding-block: 112px 0;
     }
 
-    .hero__content {
-      padding-top: 0;
+    .panel {
+      align-self: start;
     }
 
-    .hero h1 {
+    .panel h1 {
       margin: 14px 0;
-      font-size: clamp(2.2rem, 1.4rem + 4vw, 3.4rem);
+      font-size: clamp(2.1rem, 1.3rem + 4vw, 3.3rem);
     }
 
-    .hero__lead {
+    .panel h2 {
+      margin: 10px 0 8px;
+      font-size: clamp(2.2rem, 1.4rem + 4vw, 3.2rem);
+    }
+
+    .panel__lead {
       font-size: 1rem;
     }
 
-    .hero__ctas {
+    .panel__tagline {
+      font-size: 1.15rem;
+    }
+
+    .panel__tags {
+      margin-top: 14px;
+    }
+
+    .panel__tags li {
+      padding: 4px 10px;
+      font-size: 0.72rem;
+    }
+
+    .panel__next {
+      margin-top: 14px;
+      font-size: 0.78rem;
+    }
+
+    .panel__ctas {
       margin-top: 22px;
     }
 
-    .hero__fallback {
+    .panel__stats strong {
+      font-size: 1.7rem;
+    }
+
+    .journey__cue {
+      display: none;
+    }
+
+    .journey__fallback {
       top: auto;
       bottom: 16%;
       right: 10%;
       width: 80%;
     }
 
-    .hero__tourbar {
+    .journey__bar {
       padding-bottom: 14px;
     }
 
@@ -610,7 +938,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
       padding: 8px 12px;
       border: 1px solid rgb(255 255 255 / 0.22);
       border-radius: var(--radius-pill);
-      background: rgb(0 42 67 / 0.5);
+      background: var(--blue-900);
     }
 
     .tourbar__item.is-active button {
@@ -627,32 +955,48 @@ const pad = (n: number) => String(n).padStart(2, '0');
       display: none;
     }
 
-    .map-card figcaption {
-      padding: 8px 2px 9px;
-      font-size: 0.7rem;
+    .tourbar__skip {
+      padding: 0 12px;
+      background: var(--blue-900);
     }
 
-    .map-card__num {
-      display: none;
+    .traveler__label strong {
+      font-size: 0.88rem;
     }
 
-    .map-card__inner {
-      padding: 5px 5px 0;
-      border-radius: 12px;
+    .polaroid figcaption {
+      padding: 0.6em 0.3em 0.8em;
+      font-size: 0.72rem;
     }
 
-    .map-card img {
-      border-radius: 8px;
+    .polaroid__inner::before {
+      top: -8px;
+      height: 15px;
     }
   }
 
   @media (max-width: 520px) {
-    .hero__lead {
+    .panel__lead,
+    .panel__tags {
       display: none;
     }
 
     .pin__label {
       font-size: 0.7rem;
+    }
+
+    .traveler__label {
+      padding: 5px 10px 6px;
+    }
+  }
+
+  @media (max-height: 640px) and (min-width: 901px) {
+    .panel__lead {
+      display: none;
+    }
+
+    .journey__inner {
+      padding-block: 96px 100px;
     }
   }
 </style>

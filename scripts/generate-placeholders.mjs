@@ -293,60 +293,6 @@ function dome(s, cx, y, r, fill = C.blue) {
   s.rect(cx - r * 0.12, y - r * 1.52, r * 0.24, 2, C.sunD);
 }
 
-function pillar(s, x, base, w, h, { fill = C.rock, shade = C.rockD, lean = 0, seed = 1 } = {}) {
-  const r = rng(seed);
-  const top = base - h;
-  const d = `M${f1(x)} ${f1(base)}C${f1(x - w * 0.05)} ${f1(base - h * 0.5)} ${f1(x + w * 0.02 + lean)} ${f1(top + h * 0.12)} ${f1(x + w * 0.18 + lean)} ${f1(top + h * 0.03)}C${f1(x + w * 0.35 + lean)} ${f1(top - h * 0.02)} ${f1(x + w * 0.7 + lean)} ${f1(top - h * 0.02)} ${f1(x + w * 0.86 + lean)} ${f1(top + h * 0.05)}C${f1(x + w * 1.02 + lean)} ${f1(top + h * 0.2)} ${f1(x + w * 1.05)} ${f1(base - h * 0.5)} ${f1(x + w)} ${f1(base)}Z`;
-  s.path(d, fill);
-  const cp = s.clip(d);
-  let g = `<g clip-path="${cp}">`;
-  g += `<rect x="${f1(x + w * 0.62 + lean * 0.5)}" y="${f1(top)}" width="${f1(w * 0.5)}" height="${f1(h)}" fill="${shade}" opacity="0.45"/>`;
-  for (let i = 0; i < 9; i++) {
-    const sx = x + r() * w;
-    g += `<rect x="${f1(sx)}" y="${f1(top + r() * h * 0.3)}" width="${f1(1.5 + r() * 2.5)}" height="${f1(h * (0.3 + r() * 0.6))}" fill="${shade}" opacity="${f1(0.25 + r() * 0.3)}"/>`;
-  }
-  for (let i = 0; i < 4; i++) {
-    const yy = top + h * (0.25 + r() * 0.6);
-    g += `<rect x="${f1(x - 5)}" y="${f1(yy)}" width="${f1(w + 10)}" height="${f1(2 + r() * 3)}" fill="${shade}" opacity="0.22"/>`;
-  }
-  s.add(`${g}</g>`);
-  return { top, cx: x + w / 2 + lean };
-}
-
-function monastery(s, cx, top, w, { wall = C.cream, roof = C.brown, lit = false } = {}) {
-  const h = w * 0.32;
-  s.rect(cx - w / 2, top - h, w * 0.62, h, wall);
-  s.path(`M${f1(cx - w / 2 - 4)} ${f1(top - h)}L${f1(cx - w / 2 + w * 0.31)} ${f1(top - h - w * 0.12)}L${f1(cx - w / 2 + w * 0.62 + 4)} ${f1(top - h)}Z`, roof);
-  s.rect(cx + w * 0.12, top - h * 0.75, w * 0.38, h * 0.75, wall);
-  s.path(`M${f1(cx + w * 0.1)} ${f1(top - h * 0.75)}L${f1(cx + w * 0.31)} ${f1(top - h * 0.75 - w * 0.09)}L${f1(cx + w * 0.52)} ${f1(top - h * 0.75)}Z`, roof);
-  s.rect(cx - w * 0.04, top - h - w * 0.26, w * 0.1, w * 0.2, wall);
-  s.path(`M${f1(cx - w * 0.06)} ${f1(top - h - w * 0.26)}L${f1(cx + w * 0.01)} ${f1(top - h - w * 0.33)}L${f1(cx + w * 0.08)} ${f1(top - h - w * 0.26)}Z`, roof);
-  for (let i = 0; i < 4; i++) s.rect(cx - w / 2 + w * (0.07 + i * 0.13), top - h * 0.62, w * 0.05, h * 0.22, lit ? C.sun : C.blueD, 'rx="1"');
-}
-
-function windmill(s, x, base, h, { body = C.white, roof = C.sunDD, sail = C.cream, angle = 12 } = {}) {
-  const w = h * 0.42;
-  s.path(`M${f1(x - w / 2)} ${f1(base)}L${f1(x - w * 0.42)} ${f1(base - h)}L${f1(x + w * 0.42)} ${f1(base - h)}L${f1(x + w / 2)} ${f1(base)}Z`, body);
-  s.path(`M${f1(x + w * 0.1)} ${f1(base)}L${f1(x + w * 0.18)} ${f1(base - h)}L${f1(x + w * 0.42)} ${f1(base - h)}L${f1(x + w / 2)} ${f1(base)}Z`, '#dbe6ec');
-  s.path(`M${f1(x - w * 0.5)} ${f1(base - h)}L${f1(x)} ${f1(base - h - w * 0.55)}L${f1(x + w * 0.5)} ${f1(base - h)}Z`, roof);
-  s.rect(x - w * 0.1, base - h * 0.3, w * 0.2, h * 0.3, C.blue, 'rx="2"');
-  s.rect(x - w * 0.08, base - h * 0.72, w * 0.16, h * 0.14, C.blueD, 'rx="1"');
-  const hx = x - w * 0.15;
-  const hy = base - h * 0.95;
-  const L = h * 0.95;
-  let g = '';
-  for (let i = 0; i < 8; i++) {
-    const a = ((angle + i * 45) * Math.PI) / 180;
-    const ex = hx + Math.cos(a) * L;
-    const ey = hy + Math.sin(a) * L;
-    g += `<line x1="${f1(hx)}" y1="${f1(hy)}" x2="${f1(ex)}" y2="${f1(ey)}" stroke="${C.brown}" stroke-width="2.2"/>`;
-    const a2 = a + 0.32;
-    g += `<path d="M${f1(hx + Math.cos(a) * L * 0.25)} ${f1(hy + Math.sin(a) * L * 0.25)}L${f1(ex)} ${f1(ey)}L${f1(hx + Math.cos(a2) * L * 0.82)} ${f1(hy + Math.sin(a2) * L * 0.82)}Z" fill="${sail}" opacity="0.95"/>`;
-  }
-  s.add(g);
-  s.circle(hx, hy, w * 0.08, C.brown);
-}
-
 function boat(s, x, y, w, { hull = C.white, stripe = C.blue, sail = true } = {}) {
   s.path(`M${f1(x)} ${f1(y)}L${f1(x + w)} ${f1(y)}L${f1(x + w * 0.86)} ${f1(y + w * 0.16)}L${f1(x + w * 0.12)} ${f1(y + w * 0.16)}Z`, hull);
   s.rect(x + w * 0.05, y + w * 0.04, w * 0.88, w * 0.035, stripe);
@@ -390,6 +336,117 @@ function vignette(s, strength = 0.22) {
     [0.55, C.blueN, 0],
     [1, C.blueN, strength],
   ], { r: 0.75 }));
+}
+
+function bridge(s, deckY, x0, x1, pylons, { color = C.cream, cable = C.paper } = {}) {
+  const span = (x1 - x0) / (pylons + 1);
+  for (let i = 1; i <= pylons; i++) {
+    const px = x0 + span * i;
+    const top = deckY - 200;
+    let g = '';
+    for (let k = 1; k <= 10; k++) {
+      const off = span * 0.47 * (k / 10);
+      const ty = top + 10 + k * 5;
+      g += `<line x1="${f1(px)}" y1="${f1(ty)}" x2="${f1(px - off)}" y2="${deckY}" stroke="${cable}" stroke-width="1.5" opacity="0.8"/>`;
+      g += `<line x1="${f1(px)}" y1="${f1(ty)}" x2="${f1(px + off)}" y2="${deckY}" stroke="${cable}" stroke-width="1.5" opacity="0.8"/>`;
+    }
+    s.add(g);
+    s.path(`M${f1(px - 20)} ${deckY + 64}L${f1(px - 4)} ${top}L${f1(px + 4)} ${top}L${f1(px + 20)} ${deckY + 64}L${f1(px + 11)} ${deckY + 64}L${f1(px)} ${deckY - 46}L${f1(px - 11)} ${deckY + 64}Z`, color);
+    s.rect(px - 28, deckY + 64, 56, 26, C.stoneD);
+  }
+  s.rect(x0 - 60, deckY - 6, x1 - x0 + 120, 12, color);
+  s.rect(x0 - 60, deckY + 6, x1 - x0 + 120, 4, C.stoneD, 'opacity="0.6"');
+}
+
+function church(s, cx, base, w) {
+  const h = w * 0.4;
+  s.rect(cx - w / 2, base - h, w, h, C.cream);
+  s.rect(cx - w / 2, base - h, w, w * 0.025, C.paper);
+  for (let i = 0; i < 9; i++) {
+    const x = cx - w / 2 + w * 0.065 + i * w * 0.1;
+    const r = w * 0.022;
+    s.path(`M${f1(x)} ${f1(base - h * 0.2)}V${f1(base - h * 0.62)}A${f1(r)} ${f1(r)} 0 0 1 ${f1(x + r * 2)} ${f1(base - h * 0.62)}V${f1(base - h * 0.2)}Z`, C.blueD, 'opacity="0.85"');
+  }
+  s.path(`M${f1(cx - w * 0.07)} ${base}V${f1(base - h * 0.5)}A${f1(w * 0.07)} ${f1(w * 0.07)} 0 0 1 ${f1(cx + w * 0.07)} ${f1(base - h * 0.5)}V${base}Z`, C.blueDD, 'opacity="0.85"');
+  for (const dx of [-0.38, 0.38]) dome(s, cx + dx * w, base - h, w * 0.07, C.blue);
+  const dy = base - h - w * 0.13;
+  s.rect(cx - w * 0.17, dy, w * 0.34, w * 0.13, C.cream);
+  for (let i = 0; i < 6; i++) s.rect(cx - w * 0.15 + i * w * 0.055, dy + w * 0.035, w * 0.025, w * 0.06, C.blueD, 'rx="3" opacity="0.8"');
+  s.path(`M${f1(cx - w * 0.19)} ${f1(dy)}A${f1(w * 0.19)} ${f1(w * 0.2)} 0 0 1 ${f1(cx + w * 0.19)} ${f1(dy)}Z`, C.blue);
+  s.path(`M${f1(cx - w * 0.11)} ${f1(dy - w * 0.07)}A${f1(w * 0.13)} ${f1(w * 0.13)} 0 0 1 ${f1(cx + w * 0.02)} ${f1(dy - w * 0.17)}`, 'none', `stroke="${C.blueL}" stroke-width="${f1(w * 0.012)}" stroke-linecap="round" opacity="0.6"`);
+  s.rect(cx - 2, dy - w * 0.26, 4, w * 0.07, C.sunD);
+  s.rect(cx - w * 0.02, dy - w * 0.24, w * 0.04, 4, C.sunD);
+}
+
+function turtle(s, cx, cy, size, angle = -12) {
+  const sh = '#7a5a32';
+  const fl = '#8f7a4c';
+  let g = `<g transform="translate(${f1(cx)} ${f1(cy)}) rotate(${angle})">`;
+  g += `<ellipse cx="${f1(-size * 0.42)}" cy="${f1(-size * 0.5)}" rx="${f1(size * 0.46)}" ry="${f1(size * 0.13)}" fill="${fl}" transform="rotate(-38 ${f1(-size * 0.42)} ${f1(-size * 0.5)})"/>`;
+  g += `<ellipse cx="${f1(-size * 0.42)}" cy="${f1(size * 0.5)}" rx="${f1(size * 0.46)}" ry="${f1(size * 0.13)}" fill="${fl}" transform="rotate(38 ${f1(-size * 0.42)} ${f1(size * 0.5)})"/>`;
+  g += `<ellipse cx="${f1(size * 0.55)}" cy="${f1(-size * 0.32)}" rx="${f1(size * 0.22)}" ry="${f1(size * 0.09)}" fill="${fl}" transform="rotate(30 ${f1(size * 0.55)} ${f1(-size * 0.32)})"/>`;
+  g += `<ellipse cx="${f1(size * 0.55)}" cy="${f1(size * 0.32)}" rx="${f1(size * 0.22)}" ry="${f1(size * 0.09)}" fill="${fl}" transform="rotate(-30 ${f1(size * 0.55)} ${f1(size * 0.32)})"/>`;
+  g += `<ellipse cx="${f1(-size * 0.86)}" cy="0" rx="${f1(size * 0.2)}" ry="${f1(size * 0.16)}" fill="${fl}"/>`;
+  g += `<circle cx="${f1(-size * 0.95)}" cy="${f1(-size * 0.06)}" r="${f1(size * 0.025)}" fill="${C.blueN}"/>`;
+  g += `<ellipse cx="0" cy="0" rx="${f1(size * 0.66)}" ry="${f1(size * 0.5)}" fill="${sh}"/>`;
+  g += `<ellipse cx="${f1(-size * 0.04)}" cy="${f1(-size * 0.06)}" rx="${f1(size * 0.56)}" ry="${f1(size * 0.4)}" fill="#946c3c"/>`;
+  const cells = [
+    [-0.3, 0], [0, 0], [0.28, 0], [-0.15, -0.24], [0.15, -0.24], [-0.15, 0.24], [0.15, 0.24],
+  ];
+  for (const [x, y] of cells) g += `<ellipse cx="${f1(x * size)}" cy="${f1(y * size)}" rx="${f1(size * 0.13)}" ry="${f1(size * 0.1)}" fill="none" stroke="#5e4424" stroke-width="${f1(size * 0.025)}" opacity="0.7"/>`;
+  g += '</g>';
+  s.add(g);
+}
+
+function fish(s, x, y, size, fill = C.sunL) {
+  s.path(`M${f1(x)} ${f1(y)}C${f1(x + size * 0.4)} ${f1(y - size * 0.35)} ${f1(x + size)} ${f1(y - size * 0.2)} ${f1(x + size * 1.1)} ${f1(y)}C${f1(x + size)} ${f1(y + size * 0.2)} ${f1(x + size * 0.4)} ${f1(y + size * 0.35)} ${f1(x)} ${f1(y)}Z M${f1(x + size * 1.05)} ${f1(y)}L${f1(x + size * 1.45)} ${f1(y - size * 0.25)}L${f1(x + size * 1.4)} ${f1(y + size * 0.25)}Z`, fill, 'opacity="0.85"');
+}
+
+function archway(s, cx, base, w, h) {
+  const r = w * 0.32;
+  s.rect(cx - w / 2, base - h, w, h, C.stone);
+  for (let i = 1; i < 7; i++) s.rect(cx - w / 2, base - h + (h / 7) * i, w, 1.6, C.stoneD, 'opacity="0.45"');
+  const top = base - h * 0.82 + r;
+  s.path(`M${f1(cx - r)} ${base}V${f1(top)}A${f1(r)} ${f1(r)} 0 0 1 ${f1(cx + r)} ${f1(top)}V${base}Z`, s.linear([
+    [0, '#2b2418'],
+    [0.6, '#4a3f2c'],
+    [1, '#2b2418'],
+  ]));
+  s.path(`M${f1(cx - r * 0.42)} ${base}V${f1(top + r * 0.45)}A${f1(r * 0.42)} ${f1(r * 0.42)} 0 0 1 ${f1(cx + r * 0.42)} ${f1(top + r * 0.45)}V${base}Z`, s.linear([
+    [0, '#cfe1ea'],
+    [0.55, '#f6f0e4'],
+    [0.56, '#b9b06e'],
+    [1, '#9da35a'],
+  ]));
+  for (let i = 0; i <= 10; i++) {
+    const a = Math.PI + (Math.PI * i) / 10;
+    s.add(`<line x1="${f1(cx + Math.cos(a) * r)}" y1="${f1(top + Math.sin(a) * r)}" x2="${f1(cx + Math.cos(a) * (r + 26))}" y2="${f1(top + Math.sin(a) * (r + 26))}" stroke="${C.stoneD}" stroke-width="2" opacity="0.7"/>`);
+  }
+  s.path(`M${f1(cx - r - 26)} ${f1(top)}A${f1(r + 26)} ${f1(r + 26)} 0 0 1 ${f1(cx + r + 26)} ${f1(top)}`, 'none', `stroke="${C.stoneD}" stroke-width="2" opacity="0.7"`);
+}
+
+function pine(s, x, base, h, fill = C.oliveD) {
+  s.path(`M${f1(x - 4)} ${base}C${f1(x - 2)} ${f1(base - h * 0.4)} ${f1(x + 8)} ${f1(base - h * 0.7)} ${f1(x + 4)} ${f1(base - h * 0.82)}L${f1(x + 10)} ${f1(base - h * 0.82)}C${f1(x + 14)} ${f1(base - h * 0.6)} ${f1(x + 6)} ${f1(base - h * 0.4)} ${f1(x + 6)} ${base}Z`, C.brown);
+  const w = h * 0.55;
+  for (let i = 0; i < 6; i++) {
+    const t = i / 5;
+    s.add(`<ellipse cx="${f1(x + 7 - w / 2 + w * t)}" cy="${f1(base - h * (0.86 + Math.sin(t * Math.PI) * 0.1))}" rx="${f1(w * 0.24)}" ry="${f1(h * 0.09)}" fill="${i % 2 ? fill : C.olive}"/>`);
+  }
+}
+
+function towerHouse(s, x, base, w, h, { lit = false, fill = C.stone, shade = C.stoneD } = {}) {
+  s.rect(x, base - h, w, h, fill);
+  s.rect(x + w * 0.62, base - h, w * 0.38, h, shade, 'opacity="0.45"');
+  for (let i = 1; i < 9; i++) s.rect(x, base - h + (h / 9) * i, w, 1.4, shade, 'opacity="0.4"');
+  const n = 5;
+  const mw = w / (n * 2 - 1);
+  for (let i = 0; i < n; i++) s.rect(x + i * mw * 2, base - h - mw * 0.9, mw, mw * 0.9, fill);
+  for (let i = 0; i < 6; i++) s.rect(x + w * 0.1 + i * w * 0.14, base - h + 4, w * 0.06, 10, shade, 'opacity="0.7"');
+  const win = lit ? C.sun : '#3b3226';
+  s.rect(x + w * 0.4, base - h * 0.78, w * 0.16, h * 0.08, win, 'rx="3"');
+  s.rect(x + w * 0.18, base - h * 0.52, w * 0.13, h * 0.07, win, 'rx="3"');
+  s.rect(x + w * 0.62, base - h * 0.52, w * 0.13, h * 0.07, win, 'rx="3"');
+  s.path(`M${f1(x + w * 0.38)} ${base}V${f1(base - h * 0.16)}A${f1(w * 0.12)} ${f1(w * 0.12)} 0 0 1 ${f1(x + w * 0.62)} ${f1(base - h * 0.16)}V${base}Z`, '#3b3226');
 }
 
 const W = 1200;
@@ -456,321 +513,240 @@ const scenes = {
     }
     grain(s, 0.06);
   },
-  'delphi-1'(s) {
-    sky(s, 'day', 560);
-    ridge(s, { base: 470, amp: 220, fill: '#a9c2cf', seed: 41, shape: (u) => 0.4 + 0.6 * Math.sin(u * Math.PI * 0.9) });
-    ridge(s, { base: 560, amp: 180, fill: '#8aa58f', seed: 42, shape: (u) => 0.5 + 0.5 * Math.cos(u * 2.4) });
-    ridge(s, { base: 640, amp: 90, fill: C.sage, seed: 43 });
-    s.rect(0, 700, W, H - 700, s.linear([
-      [0, '#c8bf8c'],
-      [1, '#a39a66'],
+  'patras-1'(s) {
+    sky(s, 'golden', 560);
+    sun(s, 900, 380, 58);
+    ridge(s, { base: 560, amp: 120, fill: '#9fb4c0', seed: 201, shape: (u) => 0.6 + 0.4 * Math.sin(u * 2.4) });
+    ridge(s, { base: 572, amp: 40, fill: '#7f9aa8', seed: 202 });
+    sea(s, 570, '#5c97bf', '#003a5e', { lines: 30, sparkle: C.sunLL, opacity: 0.55 });
+    sunPath(s, 900, 572, 120);
+    bridge(s, 610, -60, 1260, 4);
+    s.path(`M-20 900L-20 700C120 690 240 720 330 760C420 800 470 860 500 900Z`, '#c8ad83');
+    for (let i = 0; i < 4; i++) cypress(s, 40 + i * 46, 770 + i * 8, 120 + s.r() * 40);
+    grain(s, 0.04);
+    vignette(s, 0.16);
+  },
+  'patras-2'(s) {
+    sky(s, 'day', 680);
+    ridge(s, { base: 600, amp: 90, fill: '#b9cbd4', seed: 211 });
+    s.rect(0, 680, W, H - 680, s.linear([
+      [0, '#e8dcc6'],
+      [1, '#cdbb98'],
     ]));
-    const cx = 600;
-    const base = 740;
-    for (let i = 0; i < 3; i++) s.add(`<ellipse cx="${cx}" cy="${base - i * 14}" rx="${330 - i * 24}" ry="${62 - i * 6}" fill="${i % 2 ? C.stone : C.paper}"/>`);
-    s.add(`<ellipse cx="${cx}" cy="${base - 42}" rx="${262}" ry="${44}" fill="${C.stoneD}" opacity="0.35"/>`);
-    const stumps = [
-      [-230, 0.82],
-      [-160, 0.9],
-      [190, 0.86],
-      [250, 0.94],
-      [-60, 0.93],
-    ];
-    for (const [dx, b] of stumps) column(s, cx + dx, base - 34, 34, 230, { fill: C.cream, shade: C.stoneD, broken: b });
-    const cols = [-110, -20, 70];
-    let top = 0;
-    for (const dx of cols) top = column(s, cx + dx, base - 34, 40, 250, { fill: C.cream, shade: C.stoneD });
-    s.path(`M${cx - 130} ${top}L${cx + 130} ${top - 8}L${cx + 132} ${top - 46}L${cx - 128} ${top - 36}Z`, C.cream);
-    s.path(`M${cx - 130} ${top - 22}L${cx + 131} ${top - 30}L${cx + 131} ${top - 26}L${cx - 130} ${top - 18}Z`, C.stoneD, 'opacity="0.5"');
-    for (let i = 0; i < 6; i++) cypress(s, 70 + i * 34, 700, 110 + s.r() * 60);
-    for (let i = 0; i < 5; i++) olive(s, 980 + i * 50, 730 + s.r() * 30, 40);
+    church(s, 600, 700, 760);
+    for (const x of [90, 1110]) {
+      s.rect(x - 5, 520, 10, 200, C.brown);
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI - Math.PI;
+        s.path(`M${x} 520Q${f1(x + Math.cos(a) * 70)} ${f1(520 + Math.sin(a) * 60)} ${f1(x + Math.cos(a) * 110)} ${f1(545 + Math.sin(a) * 12)}`, 'none', `stroke="${k % 2 ? C.olive : C.sage}" stroke-width="12" stroke-linecap="round"`);
+      }
+    }
+    for (let i = 0; i < 14; i++) s.rect(150 + i * 66, 760, 28, 6, C.stoneD, 'opacity="0.5" rx="3"');
     grain(s);
     vignette(s, 0.16);
   },
-  'delphi-2'(s) {
-    sky(s, 'golden', 420);
-    sun(s, 230, 230, 54);
-    s.path(`M0 420L120 300L240 260L380 200L520 230L640 160L760 210L900 150L1040 220L1200 180L1200 900L0 900Z`, '#cdb08a');
-    s.path(`M640 160L760 210L900 150L1040 220L1200 180L1200 520L620 520Z`, '#b3936b', 'opacity="0.6"');
-    ridge(s, { base: 560, amp: 70, fill: '#9daa6c', seed: 51, detail: 0.5 });
-    const cx = 600;
-    const cy = 760;
-    for (let i = 0; i < 12; i++) {
-      const rx = 470 - i * 30;
-      const ry = 290 - i * 19;
-      s.path(`M${cx - rx} ${cy}A${rx} ${ry} 0 0 1 ${cx + rx} ${cy}Z`, i % 2 ? C.stone : C.paper);
-      s.path(`M${cx - rx} ${cy}A${rx} ${ry} 0 0 1 ${cx + rx} ${cy}`, 'none', `stroke="${C.stoneD}" stroke-width="1.4" opacity="0.6"`);
-    }
-    s.path(`M${cx - 110} ${cy}A110 64 0 0 1 ${cx + 110} ${cy}Z`, '#d8c7a4');
-    s.rect(cx - 6, cy - 300, 12, 300, C.stoneD, 'opacity="0.35"');
-    s.rect(0, cy, W, H - cy, s.linear([
-      [0, '#bfae80'],
-      [1, '#9a8a5c'],
-    ]));
-    temple(s, { x: 360, base: 880, w: 480, cols: 6, colH: 120, ruined: [1, 4], broken: { 2: 0.45, 5: 0.6 }, entab: false });
-    for (let i = 0; i < 5; i++) cypress(s, 90 + i * 30, 880, 130 + s.r() * 50);
-    grain(s);
-    vignette(s, 0.18);
+  'patras-3'(s) {
+    sky(s, 'golden', 520);
+    sun(s, 260, 330, 50);
+    sea(s, 520, '#5c97bf', '#003a5e', { lines: 24, sparkle: C.sunLL, opacity: 0.5 });
+    s.path(`M380 900L420 640C470 520 560 450 700 430C820 412 950 430 1220 470L1220 900Z`, '#bfa47c');
+    s.path(`M820 420C920 420 1060 440 1220 470L1220 900L960 900C980 720 920 540 820 420Z`, '#a68b62', 'opacity="0.6"');
+    crenellated(s, 560, 450, 420, 70, { merlon: 16 });
+    tower(s, 560, 450, 90, 150);
+    tower(s, 980, 450, 100, 170);
+    for (let row = 0; row < 4; row++)
+      for (let i = 0; i < 9 - row; i++) cube(s, 430 + row * 40 + i * 86 + s.r() * 12, 620 + row * 70, 66 + s.r() * 20, 46 + s.r() * 14, { side: '#e6dccb', win: '#a9c6d8', door: null });
+    boat(s, 140, 690, 120, { hull: C.white, stripe: C.blue, sail: false });
+    grain(s, 0.04);
+    vignette(s, 0.16);
   },
-  'delphi-3'(s) {
-    sky(s, 'golden', 400);
-    sun(s, 820, 330, 46);
-    ridge(s, { base: 380, amp: 60, fill: '#a7bccb', seed: 61 });
-    sea(s, 395, '#7fb0cf', '#5c97bf', { lines: 30, sparkle: C.sunLL, opacity: 0.6 });
-    sunPath(s, 820, 396, 120);
-    const layers = ['#a8b27a', '#909c5e', '#7c874c', '#636b2f'];
-    layers.forEach((fill, i) => {
-      const base = 520 + i * 110;
-      ridge(s, { base, amp: 90 - i * 10, fill, seed: 62 + i, detail: 0.5 });
-      for (let k = 0; k < 40 + i * 12; k++) {
-        const x = s.r() * W;
-        const y = base - 30 + s.r() * 110;
-        s.circle(x, y, 6 + i * 3 + s.r() * 4, i % 2 ? C.oliveD : C.olive, 'opacity="0.85"');
-      }
-    });
+  'chlemoutsi-1'(s) {
+    sky(s, 'day', 520);
+    sea(s, 500, '#7fb0cf', '#2c7db0', { lines: 20 });
+    s.path(`M760 505C820 470 900 455 1000 462C1080 468 1140 485 1200 505Z`, '#7f9aa8');
+    ridge(s, { base: 560, amp: 60, fill: '#a5ad74', seed: 221, detail: 0.5 });
+    s.path(`M-20 900L-20 620C140 520 300 420 460 400C620 380 760 440 900 560C980 630 1060 720 1220 760L1220 900Z`, C.sage);
+    s.path(`M600 395C700 400 800 470 900 560C980 630 1060 720 1220 760L1220 900L700 900C760 700 700 520 600 395Z`, C.olive, 'opacity="0.45"');
+    crenellated(s, 300, 430, 400, 110, { merlon: 18 });
+    tower(s, 300, 430, 70, 150);
+    tower(s, 700, 430, 70, 150);
+    s.rect(420, 250, 160, 70, C.stone);
+    crenellated(s, 400, 330, 200, 90, { merlon: 14 });
+    for (let i = 0; i < 16; i++) olive(s, 60 + s.r() * 1100, 640 + s.r() * 220, 22 + s.r() * 10);
     grain(s);
     vignette(s, 0.15);
   },
-  'meteora-1'(s) {
-    sky(s, 'day', 700);
-    ridge(s, { base: 520, amp: 140, fill: '#b9ccd6', seed: 71 });
-    pillar(s, 60, 900, 220, 420, { fill: '#d6c3a2', shade: '#b39d79', seed: 72 });
-    pillar(s, 270, 900, 180, 330, { fill: '#cdb994', shade: '#ae976f', seed: 73 });
-    const p = pillar(s, 560, 900, 420, 690, { fill: C.rock, shade: C.rockD, lean: -20, seed: 74 });
-    monastery(s, p.cx + 10, p.top + 30, 300);
-    ridge(s, { base: 900, amp: 90, fill: C.olive, seed: 75 });
-    for (let i = 0; i < 12; i++) cypress(s, 40 + i * 100 + s.r() * 40, 900, 70 + s.r() * 50, C.oliveD);
-    grain(s);
-    vignette(s, 0.16);
-  },
-  'meteora-2'(s) {
+  'chlemoutsi-2'(s) {
     sky(s, 'golden', 900);
-    sun(s, 700, 400, 64);
-    const layers = [
-      ['#c9d8df', [[-30, 210, 380], [290, 240, 430], [640, 220, 360], [960, 270, 420]]],
-      ['#8db8d2', [[110, 230, 470], [470, 210, 560], [820, 260, 450]]],
-      ['#2c6f9e', [[-80, 270, 340], [1010, 260, 370]]],
-    ];
-    let top = null;
-    layers.forEach(([fill, ps], li) => {
-      ps.forEach(([x, w, h], i) => {
-        const p = pillar(s, x, 900, w, h, { fill, shade: li === 2 ? C.blueDD : C.blueM, lean: (i % 2 ? 1 : -1) * 8, seed: 800 + li * 10 + i });
-        if (li === 1 && i === 1) top = p;
-      });
-      s.rect(0, 660 + li * 40, W, 200, s.linear([
-        [0, C.white, 0],
-        [0.5, C.white, 0.45 - li * 0.1],
-        [1, C.white, 0],
-      ]));
-    });
-    monastery(s, top.cx, top.top + 26, 150, { wall: C.paper, roof: C.blueD });
-    grain(s);
-  },
-  'meteora-3'(s) {
-    sky(s, 'night', 900);
-    s.circle(920, 170, 46, C.sunLL);
-    s.circle(940, 160, 40, '#05304f');
-    const ps = [
-      [40, 230, 520, 91],
-      [300, 180, 430, 92],
-      [520, 330, 640, 93],
-      [880, 260, 520, 94],
-    ];
-    for (const [x, w, h, seed] of ps) pillar(s, x, 900, w, h, { fill: '#0b3a5e', shade: '#062c48', seed });
-    monastery(s, 690, 900 - 640 + 30, 260, { wall: '#1d4f75', roof: '#0a3352', lit: true });
-    monastery(s, 1010, 900 - 520 + 34, 160, { wall: '#1d4f75', roof: '#0a3352', lit: true });
-    s.rect(0, 830, W, 70, '#03243d');
-    for (let i = 0; i < 70; i++) s.circle(s.r() * W, 840 + s.r() * 55, 1.6 + s.r() * 1.8, C.sun, `opacity="${f1(0.5 + s.r() * 0.5)}"`);
-    grain(s, 0.06);
-  },
-  'santorini-1'(s) {
-    sky(s, 'day', 470);
-    sea(s, 470, '#4f95c2', '#005384', { lines: 34 });
-    s.path(`M0 380C120 400 220 430 300 470L1200 520L1200 900L0 900Z`, '#d9c3a0');
-    s.path(`M0 520C200 560 300 620 380 700L520 900L0 900Z`, '#c8ad83', 'opacity="0.7"');
-    const rows = [
-      [520, 7, 0],
-      [600, 8, 30],
-      [690, 9, -10],
-      [790, 10, 20],
-    ];
-    for (const [base, n, off] of rows)
-      for (let i = 0; i < n; i++) {
-        const w = 70 + s.r() * 50;
-        const x = 380 + off + i * 92 - (base - 520) * 0.4 + s.r() * 12;
-        cube(s, x, base, w, 54 + s.r() * 30, { windows: s.r() > 0.5 ? 2 : 1 });
-      }
-    cube(s, 610, 560, 120, 92, { windows: 0, door: C.blue });
-    dome(s, 670, 468, 70);
-    cube(s, 860, 650, 110, 80, { windows: 1 });
-    dome(s, 915, 570, 58);
-    cube(s, 470, 700, 90, 70, { windows: 0 });
-    dome(s, 515, 630, 46);
-    s.rect(780, 400, 46, 150, C.white);
-    s.path(`M776 400L803 360L830 400Z`, C.blue);
-    s.rect(791, 420, 24, 40, C.blueD, 'rx="12"');
-    grain(s, 0.04);
-    vignette(s, 0.14);
-  },
-  'santorini-2'(s) {
-    sky(s, 'dusk', 560);
-    sun(s, 420, 520, 72, C.sun, C.sunL);
-    sea(s, 560, '#2c6f9e', '#002a43', { lines: 24, sparkle: C.sunL, opacity: 0.5 });
-    sunPath(s, 420, 560, 170);
-    s.path(`M0 560C120 540 210 548 300 562Z`, '#0a3352');
-    s.path(`M560 562C640 530 720 520 800 545L840 562Z`, '#0a3352');
-    s.path(`M760 900L780 640C820 560 900 470 1000 430C1080 400 1150 400 1200 410L1200 900Z`, '#0d3a5c');
-    for (let i = 0; i < 18; i++) s.rect(840 + i * 20 + s.r() * 6, 455 - (i < 9 ? i * 3 : 27) + s.r() * 6, 14, 12, C.cream, 'opacity="0.9"');
-    for (let i = 0; i < 18; i++) s.rect(845 + i * 20, 462 - (i < 9 ? i * 3 : 27), 3, 3, C.sun);
-    boat(s, 240, 690, 120, { hull: C.paper, stripe: C.sun });
-    grain(s, 0.06);
-  },
-  'santorini-3'(s) {
-    sky(s, 'golden', 560);
-    sun(s, 230, 420, 50);
-    sea(s, 560, '#5c97bf', '#005384', { lines: 28, sparkle: C.sunLL, opacity: 0.55 });
-    s.path(`M-20 900L-20 650C200 620 420 600 620 610C800 620 1000 660 1220 640L1220 900Z`, '#d8c09a');
-    s.path(`M-20 720C300 700 600 700 1220 720L1220 900L-20 900Z`, '#c4a77c', 'opacity="0.5"');
-    windmill(s, 640, 640, 240, { angle: 18 });
-    for (let i = 0; i < 5; i++) cube(s, 820 + i * 74, 700 + s.r() * 10, 64, 52 + s.r() * 18);
-    cube(s, 160, 690, 90, 70);
-    dome(s, 205, 620, 40);
-    grain(s, 0.04);
-    vignette(s, 0.16);
-  },
-  'crete-1'(s) {
-    sky(s, 'day', 560);
-    ridge(s, { base: 520, amp: 150, fill: '#b4c8cf', seed: 101 });
-    ridge(s, { base: 590, amp: 80, fill: '#a5ad74', seed: 102 });
-    s.rect(0, 640, W, H - 640, s.linear([
-      [0, '#d5c59b'],
-      [1, '#b9a576'],
+    sun(s, 600, 420, 70);
+    s.rect(0, 0, W, H, C.stone, 'opacity="0"');
+    crenellated(s, -20, 900, 1240, 520, { merlon: 30 });
+    s.path(`M440 900V600A160 160 0 0 1 760 600V900Z`, s.linear([
+      [0, '#f7d88a'],
+      [0.6, '#fbedc6'],
+      [0.61, '#b9b06e'],
+      [1, '#98a869'],
     ]));
-    const base = 760;
-    s.rect(230, base, 740, 22, C.stone);
-    s.rect(210, base + 22, 780, 22, C.paper);
-    s.rect(250, 380, 700, 380, '#e8d9bd');
-    s.rect(250, 380, 700, 26, C.cream);
-    s.rect(250, 406, 700, 18, C.blue);
-    for (let i = 0; i < 24; i++) s.circle(268 + i * 28.5, 415, 6, C.sun);
-    s.rect(300, 430, 600, 330, '#d6ad73');
-    s.rect(300, 430, 600, 40, '#b98d55', 'opacity="0.6"');
-    s.rect(300, 560, 600, 34, C.blue, 'opacity="0.85"');
-    for (let i = 0; i < 20; i++) s.path(`M${310 + i * 30} 594L${325 + i * 30} 566L${340 + i * 30} 594Z`, C.sun, 'opacity="0.9"');
-    for (const dx of [405, 555, 705]) s.rect(dx, 610, 50, 150, '#8a6440', 'rx="2"');
-    const xs = [330, 480, 630, 780];
-    for (const x of xs) {
-      s.path(`M${x} ${base}L${x - 8} 470L${x + 70} 470L${x + 62} ${base}Z`, C.brown);
-      s.path(`M${x + 40} ${base}L${x + 44} 470L${x + 70} 470L${x + 62} ${base}Z`, '#4f3524', 'opacity="0.6"');
-      s.rect(x - 18, 446, 98, 24, C.blueDD, 'rx="10"');
-      s.rect(x - 22, 432, 106, 14, C.blueD);
+    for (let i = 0; i <= 12; i++) {
+      const a = Math.PI + (Math.PI * i) / 12;
+      s.add(`<line x1="${f1(600 + Math.cos(a) * 160)}" y1="${f1(600 + Math.sin(a) * 160)}" x2="${f1(600 + Math.cos(a) * 196)}" y2="${f1(600 + Math.sin(a) * 196)}" stroke="${C.stoneD}" stroke-width="2.4" opacity="0.7"/>`);
     }
-    s.path(`M440 380L440 330C440 310 470 310 470 330L470 350L530 350L530 330C530 310 560 310 560 330L560 380Z`, C.cream);
-    s.path(`M640 380L640 330C640 310 670 310 670 330L670 350L730 350L730 330C730 310 760 310 760 330L760 380Z`, C.cream);
-    for (let i = 0; i < 4; i++) olive(s, 80 + i * 40, 820, 38);
-    for (let i = 0; i < 4; i++) cypress(s, 1030 + i * 40, 790, 120 + s.r() * 40);
+    s.path(`M404 600A196 196 0 0 1 796 600`, 'none', `stroke="${C.stoneD}" stroke-width="2.4" opacity="0.7"`);
+    s.rect(0, 860, W, 40, '#9da35a');
     grain(s);
-    vignette(s, 0.16);
+    vignette(s, 0.2);
   },
-  'crete-2'(s) {
+  'chlemoutsi-3'(s) {
+    sky(s, 'dusk', 560);
+    sun(s, 380, 540, 64, C.sun, C.sunL);
+    sea(s, 560, '#2c6f9e', '#002a43', { lines: 26, sparkle: C.sunL, opacity: 0.5 });
+    sunPath(s, 380, 560, 150);
+    s.path(`M140 562C220 540 320 536 420 548C470 554 500 560 520 562Z`, '#0a3352');
+    s.path(`M640 900L700 640C760 600 860 580 1000 590C1100 598 1160 610 1220 620L1220 900Z`, '#0d3a5c');
+    for (let i = 0; i < 14; i++) s.circle(720 + i * 34 + s.r() * 10, 625 + s.r() * 30, 2.5, C.sun);
+    s.path(`M520 700L760 700L740 728L540 728Z`, C.white);
+    s.rect(560, 672, 150, 28, C.paper);
+    s.rect(600, 652, 70, 20, C.cream);
+    s.rect(640, 632, 12, 22, C.blue);
+    for (let i = 0; i < 6; i++) s.rect(570 + i * 22, 680, 12, 8, C.blueD);
+    grain(s, 0.06);
+  },
+  'turtle-1'(s) {
+    s.rect(0, 0, W, H, s.linear([
+      [0, '#9fd8e3'],
+      [0.45, '#3b9cc4'],
+      [1, '#0b4f80'],
+    ]));
+    for (let i = 0; i < 6; i++) {
+      const x = 120 + i * 190 + s.r() * 60;
+      s.path(`M${f1(x)} 0L${f1(x + 60)} 0L${f1(x + 260)} 900L${f1(x + 120)} 900Z`, C.white, 'opacity="0.07"');
+    }
+    s.path(`M-20 900L-20 780C200 740 420 770 640 750C860 730 1040 760 1220 740L1220 900Z`, '#e3cf9c');
+    for (let i = 0; i < 12; i++) s.path(`M${f1(s.r() * W)} ${f1(800 + s.r() * 80)}q30 -8 60 0`, 'none', `stroke="#c9b27a" stroke-width="3" opacity="0.6"`);
+    for (let i = 0; i < 9; i++) {
+      const x = 60 + i * 130 + s.r() * 40;
+      s.path(`M${f1(x)} 820C${f1(x - 20)} 760 ${f1(x + 20)} 700 ${f1(x - 6)} 640`, 'none', `stroke="${i % 2 ? C.olive : C.sage}" stroke-width="7" stroke-linecap="round"`);
+    }
+    turtle(s, 600, 420, 230, -14);
+    for (let i = 0; i < 9; i++) fish(s, 120 + s.r() * 980, 140 + s.r() * 520, 22 + s.r() * 16, i % 3 ? C.sunL : C.white);
+    for (let i = 0; i < 18; i++) s.circle(650 + s.r() * 120, 120 + s.r() * 220, 3 + s.r() * 5, C.white, 'opacity="0.45"');
+    grain(s, 0.04);
+  },
+  'turtle-2'(s) {
     s.rect(0, 0, W, H, s.linear([
       [0, '#2c7db0'],
       [1, '#005384'],
     ], { x2: 1, y2: 1 }));
-    s.path(`M0 0L560 0C520 140 560 300 700 380C860 470 1000 460 1200 520L1200 0Z`, '#c8ad83');
-    s.path(`M0 0L420 0C380 120 420 260 560 340C700 420 900 430 1200 470L1200 520C1000 460 860 470 700 380C560 300 520 140 560 0`, '#a98d64', 'opacity="0.6"');
-    s.path(`M0 220C200 300 380 420 520 560C640 680 820 760 1200 760L1200 900L0 900Z`, '#9fd3de');
-    s.path(`M0 300C220 380 380 500 500 620C620 740 840 820 1200 820L1200 900L0 900Z`, '#7fc2d6');
-    s.path(`M80 900C160 760 260 640 420 560C560 490 700 470 860 520C760 520 620 560 520 640C420 720 340 800 300 900Z`, C.paper);
-    s.path(`M300 900C340 800 420 720 520 640C600 580 700 540 800 528C700 560 600 620 540 700C480 780 450 840 440 900Z`, C.sunLL, 'opacity="0.8"');
-    s.path(`M860 520C900 500 960 500 1000 520C960 560 900 560 860 520Z`, '#a98d64');
-    for (let i = 0; i < 40; i++) s.rect(s.r() * W, 560 + s.r() * 340, 20 + s.r() * 50, 2, C.white, `opacity="${f1(0.25 + s.r() * 0.3)}" rx="1"`);
-    boat(s, 940, 660, 70, { sail: false, hull: C.white, stripe: C.blue });
-    boat(s, 1040, 720, 60, { sail: false, hull: C.white, stripe: C.sun });
+    s.path(`M200 520C260 380 420 300 600 300C780 300 940 380 1000 520C1040 620 980 720 860 760C700 812 480 810 340 760C230 720 170 620 200 520Z`, '#7fc6d9');
+    s.path(`M260 520C300 420 430 360 600 360C770 360 900 420 940 520C970 600 920 680 820 712C690 752 500 752 380 712C290 680 240 600 260 520Z`, '#9fd8e3');
+    s.path(`M320 560C360 460 470 410 600 410C740 410 850 460 880 560C900 630 860 680 780 700C690 724 520 724 430 700C350 678 300 630 320 560Z`, C.sage);
+    s.path(`M350 600C380 520 480 470 600 470C720 470 820 520 850 600C760 640 450 640 350 600Z`, C.olive);
+    s.path(`M330 640C420 690 780 690 870 640C860 680 820 704 760 716C660 736 540 736 440 716C380 704 340 680 330 640Z`, C.sunLL);
+    boat(s, 920, 760, 90, { sail: false, hull: C.white, stripe: C.blue });
+    boat(s, 180, 300, 70, { sail: false, hull: C.white, stripe: C.sun });
+    for (let i = 0; i < 30; i++) s.rect(s.r() * W, s.r() * H, 18 + s.r() * 40, 2, C.white, `opacity="${f1(0.2 + s.r() * 0.3)}" rx="1"`);
     grain(s, 0.04);
     vignette(s, 0.14);
   },
-  'crete-3'(s) {
-    sky(s, 'golden', 520);
-    sun(s, 980, 360, 56);
-    sea(s, 520, '#5c97bf', '#003a5e', { lines: 30, sparkle: C.sunLL, opacity: 0.55 });
-    sunPath(s, 980, 520, 110);
-    s.path(`M-20 640C200 600 420 590 620 560C700 548 760 540 820 540L830 566C760 570 700 578 630 590C430 620 220 640 -20 680Z`, C.stone);
-    s.path(`M-20 668C220 632 430 610 630 584L830 562L832 572C760 578 700 586 630 598C430 628 220 652 -20 690Z`, C.stoneD, 'opacity="0.6"');
-    s.path(`M786 545L796 330L838 330L848 545Z`, C.cream);
-    s.path(`M818 545L826 330L838 330L848 545Z`, C.stoneD, 'opacity="0.5"');
-    s.rect(780, 318, 74, 14, C.stone);
-    s.rect(796, 280, 42, 38, C.sunL);
-    s.circle(817, 299, 26, s.radial([
-      [0, C.sunLL, 0.9],
-      [1, C.sunLL, 0],
-    ]));
-    s.path(`M792 280L817 256L842 280Z`, C.blueD);
-    const colors = [C.sunL, C.cream, C.blueLL, C.sunLL, C.white, '#e8c98f'];
-    for (let i = 0; i < 9; i++) {
-      const w = 70 + s.r() * 30;
-      cube(s, -20 + i * 82, 900, w, 150 + s.r() * 90, { wall: colors[i % colors.length], side: '#d9cdb8', windows: 2, door: C.blue, depth: 0.1 });
+  'turtle-3'(s) {
+    sky(s, 'day', 420);
+    ridge(s, { base: 420, amp: 70, fill: '#9fb7a0', seed: 251, shape: (u) => Math.max(0, 1 - u * 1.2) });
+    sea(s, 430, '#5aa6cf', '#005384', { lines: 26 });
+    s.path(`M-20 900L-20 560C200 600 420 660 620 740C760 796 860 850 940 900Z`, '#9fd3de', 'opacity="0.75"');
+    s.path(`M-20 900L-20 640C180 680 380 740 560 810C640 840 700 870 740 900Z`, C.sunLL);
+    s.path(`M-20 900L-20 700C140 730 300 780 440 840C490 862 530 882 560 900Z`, '#ecd9a8');
+    for (let i = 0; i < 5; i++) {
+      const x = 90 + i * 70;
+      const y = 760 + i * 22;
+      for (const dx of [-16, 16]) s.rect(x + dx - 2, y - 30, 4, 34, C.brown);
+      s.path(`M${x - 18} ${y - 8}L${x + 18} ${y - 8}`, 'none', `stroke="${C.sunD}" stroke-width="2"`);
+      s.rect(x - 12, y - 46, 24, 14, C.paper, 'rx="2"');
     }
-    boat(s, 360, 690, 90, { hull: C.white, stripe: C.blue });
-    boat(s, 520, 720, 80, { hull: C.paper, stripe: C.sun, sail: false });
+    turtle(s, 300, 690, 46, 120);
     grain(s, 0.04);
+    vignette(s, 0.14);
+  },
+  'olympia-1'(s) {
+    sky(s, 'day', 600);
+    for (let i = 0; i < 7; i++) pine(s, -20 + i * 190 + s.r() * 40, 600, 200 + s.r() * 60);
+    ridge(s, { base: 640, amp: 80, fill: C.sage, seed: 261, detail: 0.4 });
+    s.rect(0, 640, W, H - 640, s.linear([
+      [0, '#b9b06e'],
+      [1, '#9da35a'],
+    ]));
+    archway(s, 600, 880, 760, 520);
+    grain(s);
+    vignette(s, 0.2);
+  },
+  'olympia-2'(s) {
+    sky(s, 'golden', 640);
+    sun(s, 980, 360, 52);
+    for (let i = 0; i < 6; i++) pine(s, 40 + i * 230 + s.r() * 60, 640, 230 + s.r() * 60);
+    s.rect(0, 640, W, H - 640, s.linear([
+      [0, '#c9c38f'],
+      [1, '#a9a36a'],
+    ]));
+    temple(s, { x: 270, base: 800, w: 660, cols: 6, colH: 220, ruined: [2], broken: { 0: 0.15, 4: 0.55, 5: 0.3 }, entab: false, fill: '#e8dcc6', shade: C.stoneD });
+    for (let i = 0; i < 8; i++) s.rect(200 + s.r() * 800, 820 + s.r() * 50, 30 + s.r() * 50, 16 + s.r() * 14, i % 2 ? C.stone : C.stoneD, 'rx="3"');
+    grain(s);
     vignette(s, 0.16);
   },
-  'rhodes-1'(s) {
-    sky(s, 'day', 700);
-    s.rect(0, 700, W, H - 700, s.linear([
-      [0, '#c3ba86'],
-      [1, '#9d9461'],
+  'olympia-3'(s) {
+    sky(s, 'day', 560);
+    for (let i = 0; i < 5; i++) pine(s, 60 + i * 260 + s.r() * 50, 560, 200 + s.r() * 40);
+    s.rect(0, 560, W, H - 560, s.linear([
+      [0, '#bfc58a'],
+      [1, '#98a869'],
     ]));
-    crenellated(s, -10, 720, 1220, 240, { merlon: 22 });
-    tower(s, 470, 720, 170, 400);
-    tower(s, 730, 720, 170, 400);
-    s.path(`M555 720L555 560C555 520 645 520 645 560L645 720Z`, C.blueDD, 'opacity="0.85"');
-    s.rect(548, 500, 104, 20, C.stoneD);
-    s.rect(560, 480, 80, 20, C.stone);
-    tower(s, 110, 720, 120, 320);
-    tower(s, 1090, 720, 120, 320);
-    s.rect(0, 720, W, 30, C.stoneD, 'opacity="0.5"');
-    for (let i = 0; i < 3; i++) {
-      const x = 260 + i * 330;
-      s.rect(x - 4, 640, 8, 120, C.brown);
-      for (let k = 0; k < 7; k++) {
-        const a = (k / 7) * Math.PI - Math.PI;
-        s.path(`M${x} 640Q${f1(x + Math.cos(a) * 60)} ${f1(640 + Math.sin(a) * 50)} ${f1(x + Math.cos(a) * 95)} ${f1(660 + Math.sin(a) * 10)}`, 'none', `stroke="${k % 2 ? C.olive : C.sage}" stroke-width="10" stroke-linecap="round"`);
-      }
+    for (let row = 0; row < 2; row++) {
+      const base = 640 + row * 170;
+      const h = 150 + row * 90;
+      const cw = 24 + row * 12;
+      const n = 11 - row * 3;
+      for (let i = 0; i < n; i++) column(s, 70 + i * ((1060 - row * 40) / n) + row * 30, base, cw, h, { fill: C.cream, shade: C.stoneD, broken: s.r() > 0.82 ? 0.25 + s.r() * 0.3 : 0 });
     }
     grain(s);
     vignette(s, 0.16);
   },
-  'rhodes-2'(s) {
-    sky(s, 'day', 480);
-    sea(s, 480, '#5aa6cf', '#005384', { lines: 30 });
-    s.path(`M0 650C140 600 300 590 420 620C460 640 470 700 440 760L0 760Z`, '#9fd3de', 'opacity="0.7"');
-    s.path(`M560 900L600 520C640 380 720 280 840 250C940 228 1060 240 1200 260L1200 900Z`, '#c9ad80');
-    s.path(`M900 250C1000 240 1100 246 1200 262L1200 900L980 900C1000 700 960 420 900 250Z`, '#a98d64', 'opacity="0.6"');
-    crenellated(s, 700, 290, 440, 60, { merlon: 14 });
-    temple(s, { x: 820, base: 232, w: 220, cols: 7, colH: 80, ruined: [], steps: 2, roofH: 22, fill: C.paper, entab: false });
-    for (let row = 0; row < 5; row++)
-      for (let i = 0; i < 8 - row; i++) cube(s, 600 + row * 30 + i * 70 + s.r() * 10, 640 + row * 60, 56 + s.r() * 24, 40 + s.r() * 16);
-    s.path(`M0 760C160 740 320 760 470 800L520 900L0 900Z`, C.sunLL);
-    boat(s, 240, 560, 90);
-    grain(s, 0.04);
-    vignette(s, 0.14);
-  },
-  'rhodes-3'(s) {
-    sky(s, 'golden', 520);
-    sun(s, 200, 380, 52);
-    sea(s, 520, '#5c97bf', '#003a5e', { lines: 34, sparkle: C.sunLL, opacity: 0.55 });
-    s.path(`M80 600L1120 560L1140 610L60 660Z`, C.stone);
-    s.path(`M60 640L1140 594L1140 610L60 660Z`, C.stoneD, 'opacity="0.6"');
-    windmill(s, 330, 615, 150, { angle: 5 });
-    windmill(s, 560, 606, 150, { angle: 25 });
-    windmill(s, 790, 597, 150, { angle: 40 });
-    tower(s, 1060, 580, 120, 160);
-    s.circle(1060, 380, 18, C.sunL);
-    for (let i = 0; i < 5; i++) boat(s, 120 + i * 200 + s.r() * 50, 730 + s.r() * 80, 90 + s.r() * 30, { hull: i % 2 ? C.paper : C.white, stripe: i % 2 ? C.sun : C.blue, sail: i % 2 === 0 });
-    grain(s, 0.04);
+  'barbalekou-1'(s) {
+    sky(s, 'day', 560);
+    ridge(s, { base: 520, amp: 120, fill: '#b4c8cf', seed: 271 });
+    ridge(s, { base: 600, amp: 90, fill: '#a5ad74', seed: 272 });
+    s.path(`M-20 900L-20 700C160 640 340 600 520 590C700 580 880 620 1220 700L1220 900Z`, C.sage);
+    towerHouse(s, 520, 600, 170, 330);
+    for (let i = 0; i < 18; i++) olive(s, 30 + s.r() * 1140, 680 + s.r() * 200, 26 + s.r() * 12);
+    cypress(s, 470, 610, 150);
+    cypress(s, 720, 610, 130);
+    grain(s);
     vignette(s, 0.16);
+  },
+  'barbalekou-2'(s) {
+    sky(s, 'golden', 460);
+    sun(s, 300, 340, 46);
+    ridge(s, { base: 440, amp: 70, fill: '#a7bccb', seed: 281 });
+    const layers = ['#a8b27a', '#909c5e', '#7c874c', '#636b2f'];
+    layers.forEach((fill, i) => {
+      const base = 520 + i * 110;
+      ridge(s, { base, amp: 80 - i * 10, fill, seed: 282 + i, detail: 0.5 });
+      for (let k = 0; k < 22 + i * 6; k++) {
+        const x = (k / (22 + i * 6)) * W + s.r() * 20;
+        s.circle(x, base - 10 + (k % 2) * 30 + s.r() * 40, 8 + i * 4, i % 2 ? C.oliveD : C.olive, 'opacity="0.9"');
+      }
+      if (i === 0) towerHouse(s, 840, base - 52, 34, 70);
+    });
+    grain(s);
+    vignette(s, 0.15);
+  },
+  'barbalekou-3'(s) {
+    sky(s, 'dusk', 640);
+    s.circle(960, 200, 30, C.sunLL);
+    ridge(s, { base: 600, amp: 110, fill: '#1d5a85', seed: 291 });
+    ridge(s, { base: 700, amp: 90, fill: '#0d3a5c', seed: 292 });
+    towerHouse(s, 500, 720, 150, 300, { lit: true, fill: '#0a3352', shade: '#05243d' });
+    s.path(`M-20 900L-20 740C200 700 400 690 600 700C800 710 1000 740 1220 760L1220 900Z`, '#062b47');
+    for (let i = 0; i < 40; i++) s.circle(s.r() * W, 40 + s.r() * 400, 0.8 + s.r() * 1.4, C.sunLL, `opacity="${f1(0.4 + s.r() * 0.5)}"`);
+    for (let i = 0; i < 10; i++) s.circle(100 + s.r() * 1000, 760 + s.r() * 100, 2.2, C.sun, 'opacity="0.85"');
+    grain(s, 0.06);
   },
 };
 
@@ -840,21 +816,21 @@ const titles = {
   'athens-1': 'Placeholder: the Parthenon at golden hour',
   'athens-2': 'Placeholder: Temple of Hephaestus in the Ancient Agora',
   'athens-3': 'Placeholder: Lycabettus Hill at dusk',
-  'delphi-1': 'Placeholder: Tholos of Athena Pronaia',
-  'delphi-2': 'Placeholder: the ancient theatre of Delphi',
-  'delphi-3': 'Placeholder: olive groves running down to the sea',
-  'meteora-1': 'Placeholder: monastery on a Meteora pillar',
-  'meteora-2': 'Placeholder: Meteora pillars at sunrise',
-  'meteora-3': 'Placeholder: Meteora at night',
-  'santorini-1': 'Placeholder: blue domes of Oia',
-  'santorini-2': 'Placeholder: sunset over the caldera',
-  'santorini-3': 'Placeholder: windmill above the caldera',
-  'crete-1': 'Placeholder: Palace of Knossos',
-  'crete-2': 'Placeholder: Balos lagoon',
-  'crete-3': 'Placeholder: Chania harbour lighthouse',
-  'rhodes-1': 'Placeholder: walls of Rhodes Old Town',
-  'rhodes-2': 'Placeholder: Acropolis of Lindos',
-  'rhodes-3': 'Placeholder: windmills of Mandraki harbour',
+  'patras-1': 'Placeholder: the Rio–Antirrio Bridge',
+  'patras-2': 'Placeholder: Church of Saint Andrew, Patras',
+  'patras-3': 'Placeholder: Patras Castle above the city',
+  'chlemoutsi-1': 'Placeholder: Chlemoutsi Castle above the Ionian Sea',
+  'chlemoutsi-2': 'Placeholder: the castle gate at Chlemoutsi',
+  'chlemoutsi-3': 'Placeholder: sunset over Kyllini harbour',
+  'turtle-1': 'Placeholder: a loggerhead turtle underwater',
+  'turtle-2': 'Placeholder: Marathonisi, the Turtle Island',
+  'turtle-3': 'Placeholder: protected turtle nests on Laganas beach',
+  'olympia-1': 'Placeholder: the tunnel into the ancient stadium of Olympia',
+  'olympia-2': 'Placeholder: the Temple of Hera at Olympia',
+  'olympia-3': 'Placeholder: columns of the palaestra at Olympia',
+  'barbalekou-1': 'Placeholder: Barbalekou Tower among olive trees',
+  'barbalekou-2': 'Placeholder: olive groves of Trifylia',
+  'barbalekou-3': 'Placeholder: Barbalekou Tower at dusk',
 };
 
 async function main() {
