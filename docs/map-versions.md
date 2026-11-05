@@ -10,6 +10,7 @@ This document describes every variant of the step-based hero map. Each version l
 | `feature/map-v2-detail` | Real land cover, 3D forests and towns, landmarks, road network | quick-move branch | `landcover.webp` 386 KB, `detail.json` 616 KB (189 KB gzipped) | ~24k instances (~0.8M triangles) near stops |
 | `feature/map-v3-ride-along` | Chase camera that rides behind the car or ferry between stops | V1 | none | same as V1 |
 | `feature/map-v4-daylight` | A day passes along the route: dawn → noon → golden hour → night | quick-move branch | `landcover.webp` (for city lights) | heavier terrain shader (shadow ray-march) |
+| `feature/map-detail-daylight` | V2 + V4 merged: real-world detail lit by the time of day | V2, with V4 merged in | same as V2 | V2 + V4 combined (heaviest) |
 
 To try a branch:
 
@@ -160,14 +161,35 @@ Assumption: "displayed at the top" was read as the bar's position on screen, not
 
 ---
 
+## Merged: detail + daylight (`feature/map-detail-daylight`)
+
+Version 2 (real-world detail) with Version 4 (time of day) merged in, plus the glue that makes them behave as one scene rather than two layers on top of each other.
+
+![Dawn over Athens: houses and forests in low warm light](map-versions/05-merged-dawn.jpg)
+![Golden hour over Olympia: trees on sunlit slopes catch the light, trees in terrain shadow stay dark](map-versions/05-merged-golden.jpg)
+![Blue hour at Barbalekou: floodlit temple, amber roads](map-versions/05-merged-bluehour.jpg)
+
+**What the merge adds beyond V2 + V4**
+- **Lights follow the mood.** The 3D trees, houses and landmarks are lit by a `DirectionalLight` and `HemisphereLight` whose direction, colour and intensity come from the current mood each frame. Their sky colour shifts toward moonlight blue at night. The scene fog colour follows the mood fog, so distant objects fade into the same sky as the terrain.
+- **Objects sit in the terrain's shadows.** The terrain shadows are ray-marched per pixel on the GPU, which instanced objects can't reuse cheaply. Instead, each instance's shadow factor is computed on the CPU, once per mood, with the same 22-step march over the same heightmap. This runs in idle callbacks right after the detail loads. A per-instance `aShadow` attribute holds the factors for the mood you're leaving and the one you're heading to, and a uniform blends them in step with the camera flight. A tree in a valley that's dark at golden hour is therefore dark too, instead of glowing orange.
+- **Night lighting on the objects.** About two thirds of the houses, chosen at random per instance, glow warm across their whole walls at night. Window bands alone are under a pixel tall at stop zoom, so whole lit houses read better, the way a town looks from a hill. Temples, towers and lighthouses look floodlit, lighthouse lamps shine, and motorways and main roads turn amber.
+- **Shared data.** One `landcover.webp` feeds both the land-cover tint (V2) and the city lights (V4), and is loaded once.
+
+**Limitations.**
+- The 3D detail hides in the route overview (as in V2), so the Night · 23:30 overview shows city lights from the terrain shader only. Lit houses show up at the stops: dimly at Athens dawn, more at Barbalekou's blue hour.
+- This is the heaviest variant: V2's ~24k instances plus V4's shadow loop in the terrain shader. Computing the instance shadows takes roughly 10–20 ms of CPU per mood, spread across idle callbacks. If phones struggle, drop the instance cap or the shadow steps first; the automatic resolution drop also helps.
+
+---
+
 ## Combining them
 
 Recommendations:
 
 1. **V1 + V4.** Vehicles at golden hour and ferries under moonlight. Both mainly touch `GreeceMap.ts`'s render loop and should merge cleanly. V4's lighting can drive the vehicle lights (`HemisphereLight` and `DirectionalLight` colours from the current mood).
-2. **V2's land-cover tint alone.** It costs one texture and a few shader lines, and makes the map clearly richer at every zoom. Add the instanced forests and towns on desktop only.
-3. **V3** is a strong storytelling option but changes the pacing most. Consider making it opt-in, for example with a "Ride along" toggle.
-4. **Quick vs zoom.** All versions are built on the quick-move branch. The zoom variant differs only in the stop-to-stop camera path (`camera.ts`/`flightDuration`), so each version ports over by cherry-picking.
+2. **V2 + V4** now exist as `feature/map-detail-daylight` (above).
+3. **V2's land-cover tint alone.** It costs one texture and a few shader lines, and makes the map clearly richer at every zoom. Add the instanced forests and towns on desktop only.
+4. **V3** is a strong storytelling option but changes the pacing most. Consider making it opt-in, for example with a "Ride along" toggle.
+5. **Quick vs zoom.** All versions are built on the quick-move branch. The zoom variant differs only in the stop-to-stop camera path (`camera.ts`/`flightDuration`), so each version ports over by cherry-picking.
 
 ## How these were tested
 
