@@ -65,6 +65,10 @@ const CAMERA_EASE: Bezier = [0.65, 0, 0.35, 1];
 const DRAW_EASE: Bezier = [0.45, 0, 0.3, 1];
 const DRAW_DELAY = 0.15;
 const PANEL_SWITCH = 0.35;
+const RIDE_DISTANCE = 30;
+const RIDE_PITCH = 61;
+const rideDuration = (km: number) => MathUtils.clamp(2.6 + km / 55, 3.2, 6.8);
+const rideMove = (r: number) => smooth(r, 0.05, 0.93);
 
 const flightDuration = (a: Pose, b: Pose) =>
   MathUtils.clamp(0.8 + a.target.distanceTo(b.target) / 600 + Math.abs(Math.log(b.distance / a.distance)) * 0.35, 0.9, 1.6);
@@ -275,23 +279,55 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     return i;
   };
 
+  let ride = -1;
+  const chase: Pose = clonePose(poses.overview);
+  const rideAhead = new Vector3();
+  const rideBehind = new Vector3();
+  const chasePose = (leg: number, s: number, out: Pose) => {
+    const path = paths[leg];
+    const along = s * path.length;
+    pointOn(path, along, out.target, true);
+    pointOn(path, along + 10, rideAhead, true);
+    pointOn(path, along - 6, rideBehind, true);
+    out.yaw = MathUtils.radToDeg(Math.atan2(rideBehind.x - rideAhead.x, rideBehind.z - rideAhead.z));
+    out.distance = RIDE_DISTANCE * (overlay.isDocked ? 1.25 : 1);
+    out.pitch = RIDE_PITCH;
+    const f = overlay.focusPoint();
+    out.fx = f.x;
+    out.fy = Math.max(f.y, 0.62);
+    return out;
+  };
+
   const evalPose = (out: Pose) => {
     const p = flight.get();
-    return p >= 1 ? copyPose(nodePose(node), out) : flyTo(fromPose, nodePose(node), p, out);
+    if (p >= 1) return copyPose(nodePose(node), out);
+    if (ride >= 0) {
+      chasePose(ride, rideMove(p), chase);
+      const w = smooth(p, 0, 0.22) * (1 - smooth(p, 0.8, 1));
+      return flyTo(p < 0.5 ? fromPose : nodePose(node), chase, w, out);
+    }
+    return flyTo(fromPose, nodePose(node), p, out);
   };
 
   const show = (target: number, instant = reducedMotion) => {
     const n = MathUtils.clamp(target, 0, nodes.count - 1);
     if (n === node) return;
     copyPose(evalPose(scratch), fromPose);
+    const fromStop = nodes.stopAt(node);
+    const settled = flight.get() >= 1 && Math.abs(drawn.get() - drawTo) < 0.05;
+    const rideLeg = !instant && settled && fromStop >= 0 && nodes.stopAt(n) === fromStop + 1 ? fromStop : -1;
     fromNode = flight.get() < PANEL_SWITCH ? fromNode : node;
     node = n;
     flightAnim?.stop();
     drawAnim?.stop();
     const to = drawFor(n);
+    ride = rideLeg;
     if (instant) {
       flight.jump(1);
       drawn.jump(to);
+    } else if (ride >= 0) {
+      flight.jump(0);
+      flightAnim = animate(flight, 1, { duration: rideDuration(paths[ride].km), ease: 'linear' });
     } else {
       flight.jump(0);
       flightAnim = animate(flight, 1, { duration: flightDuration(fromPose, nodePose(n)), ease: CAMERA_EASE });
@@ -337,6 +373,11 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     const focusAmt = p < 0.5 ? 1 - smooth(p, 0, 0.3) : smooth(p, 0.7, 1);
     const activeStop = arrived ? toStop : -1;
 
+    if (ride >= 0 && p < 1) drawn.jump(legStart[ride] + paths[ride].length * rideMove(p));
+    else if (ride >= 0) {
+      drawn.jump(drawTo);
+      ride = -1;
+    }
     const d = drawn.get();
     const leg = legAt(d);
     const along = leg < paths.length ? d - legStart[leg] : 0;
@@ -383,7 +424,7 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     fog.near = un.uFogNear.value;
     fog.far = un.uFogFar.value;
     traffic.update(reducedMotion ? 0 : dt, reducedMotion ? 0 : time, riseE);
-    hero.update(traveler ? traveler.pos : null, heading, traveler?.mode ?? 'road', pose.distance * 0.034, speed, dt, time);
+    hero.update(traveler ? traveler.pos : null, heading, traveler?.mode ?? 'road', Math.max(1.6, pose.distance * 0.034), speed, dt, time);
 
     renderer.clear();
     renderer.render(scene, camera);
