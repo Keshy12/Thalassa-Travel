@@ -400,6 +400,11 @@ const nextLine = (i: number) => {
     opacity: 1;
   }
 
+  .traveler.is-flipped {
+    flex-direction: row-reverse;
+    translate: -100% 0;
+  }
+
   .traveler__icon {
     position: relative;
     display: grid;
@@ -422,6 +427,10 @@ const nextLine = (i: number) => {
     border: 2px solid rgb(242 193 78 / 0.8);
     border-radius: 50%;
     animation: pulse 1.8s var(--ease-out) infinite;
+  }
+
+  .traveler.is-flipped .traveler__icon {
+    margin: -21px -21px 0 0;
   }
 
   .traveler__icon :global(svg) {

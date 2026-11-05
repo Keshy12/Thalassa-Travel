@@ -187,7 +187,7 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     const w = smooth(u, 0, 0.2) * (1 - smooth(u, 0.8, 1));
     const pull = TRACK_PULL + Math.min(0.4, leg.km / 500);
     out.distance = Math.exp(MathUtils.lerp(Math.log(a.distance), Math.log(b.distance), e)) * (1 + (pull - 1) * w);
-    pointOn(leg, d - out.distance * TRACK_LAG, tmpSmooth, true);
+    pointOn(leg, d - out.distance * TRACK_LAG * Math.min(1, width / height2 / 1.6), tmpSmooth, true);
     out.target.lerpVectors(a.target, b.target, e).lerp(tmpSmooth, w);
     const span = out.distance * 0.3;
     pointOn(leg, d - span, behind, true);
