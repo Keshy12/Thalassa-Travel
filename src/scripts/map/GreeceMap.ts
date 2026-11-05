@@ -1,5 +1,17 @@
 import { animate, motionValue, type AnimationPlaybackControls } from 'motion';
-import { Mesh, MathUtils, PerspectiveCamera, PlaneGeometry, Scene, TextureLoader, Vector3, WebGLRenderer, type Texture } from 'three';
+import {
+  Color,
+  Mesh,
+  MathUtils,
+  PerspectiveCamera,
+  PlaneGeometry,
+  Scene,
+  SRGBColorSpace,
+  TextureLoader,
+  Vector3,
+  WebGLRenderer,
+  type Texture,
+} from 'three';
 import { asset } from '../../lib/asset';
 import { applyPose, clonePose, flyTo, type Pose } from './camera';
 import { journeyNodes } from './journey';
@@ -8,7 +20,7 @@ import { buildLegPaths, pointOn, segmentAt, type LegPath, type RouteData } from 
 import { decodeHeight, lonLatToPx, lonLatToWorld, MAP_H, MAP_W, TEX_H, TEX_W } from './projection';
 import { RouteLines } from './routes';
 import { attachSteps } from './steps';
-import { createTerrainMaterial, FOG_HEX } from './terrainMaterial';
+import { createTerrainMaterial, FOG_HEX, srgb } from './terrainMaterial';
 
 export interface MapStop {
   name: string;
@@ -51,6 +63,39 @@ const CAMERA_EASE: Bezier = [0.65, 0, 0.35, 1];
 const DRAW_EASE: Bezier = [0.45, 0, 0.3, 1];
 const DRAW_DELAY = 0.15;
 const PANEL_SWITCH = 0.35;
+
+interface Mood {
+  label: string;
+  az: number;
+  el: number;
+  sun: [number, number, number];
+  shade: [number, number, number];
+  fog: string;
+  night: number;
+  glint: number;
+  cloud: number;
+}
+
+const MOODS: Mood[] = [
+  { label: 'Late morning', az: 255.6, el: 34.7, sun: [1.07, 1.04, 0.98], shade: [0.3, 0.4, 0.56], fog: '#03304f', night: 0, glint: 0.3, cloud: 0.45 },
+  { label: 'Dawn · 06:20', az: 88, el: 7, sun: [1.28, 0.88, 0.7], shade: [0.3, 0.28, 0.5], fog: '#272c57', night: 0.3, glint: 0.9, cloud: 0.35 },
+  { label: 'Morning · 09:10', az: 118, el: 26, sun: [1.14, 1.04, 0.9], shade: [0.31, 0.39, 0.55], fog: '#0b4269', night: 0, glint: 0.6, cloud: 0.55 },
+  { label: 'Noon · 13:00', az: 195, el: 62, sun: [1.1, 1.08, 1.0], shade: [0.36, 0.45, 0.6], fog: '#0a4f7b', night: 0, glint: 0.5, cloud: 0.7 },
+  { label: 'Afternoon · 16:30', az: 240, el: 28, sun: [1.15, 1.0, 0.8], shade: [0.3, 0.37, 0.54], fog: '#0a456c', night: 0, glint: 1.0, cloud: 0.5 },
+  { label: 'Golden hour · 19:40', az: 283, el: 6, sun: [1.38, 0.8, 0.46], shade: [0.34, 0.25, 0.42], fog: '#3a2950', night: 0.12, glint: 1.0, cloud: 0.35 },
+  { label: 'Blue hour · 21:05', az: 120, el: 30, sun: [0.5, 0.58, 0.85], shade: [0.1, 0.12, 0.24], fog: '#0b1833', night: 0.75, glint: 0.35, cloud: 0.2 },
+  { label: 'Night · 23:30', az: 150, el: 42, sun: [0.38, 0.46, 0.72], shade: [0.07, 0.09, 0.18], fog: '#061224', night: 1, glint: 0.3, cloud: 0.12 },
+];
+
+const moodDir = (m: Mood) => {
+  const az = MathUtils.degToRad(m.az);
+  const el = MathUtils.degToRad(m.el);
+  return new Vector3(Math.cos(el) * Math.sin(az), Math.sin(el), -Math.cos(el) * Math.cos(az));
+};
+const MOOD_DIR = MOODS.map(moodDir);
+const MOOD_FOG = MOODS.map((m) => srgb(m.fog));
+const MOOD_SUN = MOODS.map((m) => new Vector3(...m.sun));
+const MOOD_SHADE = MOODS.map((m) => new Vector3(...m.shade));
 
 const flightDuration = (a: Pose, b: Pose) =>
   MathUtils.clamp(0.8 + a.target.distanceTo(b.target) / 600 + Math.abs(Math.log(b.distance / a.distance)) * 0.35, 0.9, 1.6);
@@ -115,6 +160,18 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
 
   const scene = new Scene();
   scene.add(new Mesh(geometry, material));
+
+  let coverTex: Texture | null = null;
+  let disposed = false;
+  loader.loadAsync(asset('map/landcover.webp')).then((t) => {
+    if (disposed) return t.dispose();
+    coverTex = t;
+    material.uniforms.uCover.value = t;
+  }, console.error);
+  const dayChip = root.querySelector<HTMLElement>('[data-daychip]');
+  const dayLabel = root.querySelector<HTMLElement>('[data-daychip-label]');
+  let dayShown = '';
+  const clear = new Color();
 
   const ground = stops.map((s) => {
     const { x, z } = lonLatToWorld(s.lon, s.lat);
@@ -332,6 +389,25 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
     un.uFocusAmt.value = focusStop >= 0 ? focusAmt : 0;
     if (focusStop >= 0) un.uFocus.value.copy(ground[focusStop]);
     un.uFocusRadius.value = MathUtils.clamp(pose.distance * 0.2, 14, 60);
+    const ma = Math.min(fromNode, MOODS.length - 1);
+    const mb = Math.min(node, MOODS.length - 1);
+    const mt = arrived ? 1 : smooth(p, 0.05, 0.95);
+    const mix = (a: number, b: number) => a + (b - a) * mt;
+    un.uLightDir.value.lerpVectors(MOOD_DIR[ma], MOOD_DIR[mb], mt).normalize();
+    un.uSunColor.value.lerpVectors(MOOD_SUN[ma], MOOD_SUN[mb], mt);
+    un.uShadeColor.value.lerpVectors(MOOD_SHADE[ma], MOOD_SHADE[mb], mt);
+    un.uFog.value.lerpVectors(MOOD_FOG[ma], MOOD_FOG[mb], mt);
+    un.uNight.value = mix(MOODS[ma].night, MOODS[mb].night) * (coverTex ? 1 : 0.85);
+    un.uGlint.value = mix(MOODS[ma].glint, MOODS[mb].glint);
+    un.uCloud.value = mix(MOODS[ma].cloud, MOODS[mb].cloud);
+    const fogV = un.uFog.value;
+    renderer.setClearColor(clear.setRGB(fogV.x, fogV.y, fogV.z, SRGBColorSpace));
+    const label = MOODS[Math.min(shown, MOODS.length - 1)].label;
+    if (label !== dayShown && dayLabel && dayChip) {
+      dayLabel.textContent = label;
+      dayChip.dataset.night = String(MOODS[Math.min(shown, MOODS.length - 1)].night >= 0.5);
+      dayShown = label;
+    }
     un.uFogNear.value = pose.distance * 0.9;
     un.uFogFar.value = pose.distance * 2.6 + 400;
 
@@ -414,6 +490,8 @@ export async function createGreeceMap(opts: MapOptions): Promise<GreeceMapHandle
       return sectionTop + section.offsetHeight;
     },
     dispose() {
+      disposed = true;
+      coverTex?.dispose();
       stopLoop();
       ro.disconnect();
       io.disconnect();
