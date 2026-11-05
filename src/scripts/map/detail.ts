@@ -150,7 +150,7 @@ function growMaterial(u: GrowUniforms, opts: { roughness?: number } = {}) {
   const m = new MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: opts.roughness ?? 0.85 });
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, u);
-    shader.vertexShader = `uniform float uGrow;\nuniform float uReveal;\nuniform vec2 uRevealCenter;\nuniform float uShadowMix;\nattribute vec2 aShadow;\nvarying float vShadow;\n${shader.vertexShader}`.replace(
+    shader.vertexShader = `uniform float uGrow;\nuniform float uReveal;\nuniform vec2 uRevealCenter;\nuniform float uShadowMix;\nattribute vec2 aShadow;\nvarying float vShadow;\nvarying float vLit;\n${shader.vertexShader}`.replace(
       '#include <begin_vertex>',
       `#include <begin_vertex>
       #ifdef USE_INSTANCING
@@ -161,16 +161,23 @@ function growMaterial(u: GrowUniforms, opts: { roughness?: number } = {}) {
       float g = clamp((uReveal - distance(ip, uRevealCenter)) / 9.0, 0.0, 1.0) * uGrow;
       g = g * g * (3.0 - 2.0 * g);
       transformed *= g;
-      vShadow = mix(aShadow.x, aShadow.y, uShadowMix);`,
+      vShadow = mix(aShadow.x, aShadow.y, uShadowMix);
+      #ifdef USE_INSTANCING
+        vLit = fract(sin(float(gl_InstanceID) * 12.9898) * 43758.5453);
+      #else
+        vLit = 1.0;
+      #endif`,
     );
-    shader.fragmentShader = `uniform float uNight;\nvarying float vShadow;\n${shader.fragmentShader}`
+    shader.fragmentShader = `uniform float uNight;\nvarying float vShadow;\nvarying float vLit;\n${shader.fragmentShader}`
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
         #ifdef USE_COLOR
           float win = step(0.08, vColor.b - vColor.r);
+          float wall = step(0.75, min(vColor.r, vColor.g)) * step(vColor.r - vColor.b, 0.25);
           float lamp = step(0.95, vColor.r) * step(0.65, vColor.g) * step(vColor.g, 0.85) * step(vColor.b, 0.4);
-          totalEmissiveRadiance += vec3(1.0, 0.7, 0.36) * (win * 1.5 + lamp * 3.5) * uNight;
+          float on = step(0.32, vLit);
+          totalEmissiveRadiance += vec3(1.0, 0.68, 0.34) * ((wall * 0.62 + win * 1.6) * on + lamp * 3.5) * uNight;
         #endif`,
       )
       .replace(
