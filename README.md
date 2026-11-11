@@ -38,6 +38,7 @@ src/
     laurel.json       laurel branches from the logo, used as decoration
   components/         one Astro component per page section
   scripts/map/        three.js map: terrain shader, journey steps, camera, route lines, DOM overlay
+  scripts/sea/        canvas sea life for the diving section
   styles/global.css   design tokens (colours, type scale, spacing)
 public/
   brand/              logo variants exported from the Illustrator files
@@ -65,7 +66,7 @@ Every image on the page comes from `src/data/media.ts`. Put the real photos and 
 
 ## Placeholder content
 
-Copy, prices, testimonials, FAQ answers, AR device claims and contact details (`src/data/site.ts`) are placeholders. Replace them before going live. The Barbalekou Tower text is deliberately generic because no public information about it could be found. The contact form only validates in the browser. Connect it to a backend or form service.
+Copy, prices, testimonials, FAQ answers, AR device claims, the diving courses and sea conditions, and contact details (`src/data/site.ts`) are placeholders. Replace them before going live. The Barbalekou Tower text is deliberately generic because no public information about it could be found. The contact form only validates in the browser. Connect it to a backend or form service.
 
 ## Brand
 
@@ -84,6 +85,16 @@ Copy, prices, testimonials, FAQ answers, AR device claims and contact details (`
 The camera view for each stop is the `view` field in `destinations.ts`. The steps (intro, one per stop, outro) are in `src/scripts/map/journey.ts`, the scroll, swipe and keyboard handling in `steps.ts`, and the camera and drawing timings at the top of `GreeceMap.ts`. While the hero fills the screen, each gesture moves one step; past the last step the page scrolls on as normal.
 
 The map pauses when off-screen or in a background tab, and lowers its resolution on slow devices. With `prefers-reduced-motion`, the camera cuts between stops and the route appears without animation. Browsers without WebGL 2 get a static outline map.
+
+## Diving section
+
+The last section of the page (`src/components/Diving.astro`) announces the planned scuba diving courses. When it scrolls into view the page fills with water: a full-screen layer rises over the contact section, then stays in place while the diving content scrolls through it down to the sea floor above the footer.
+
+- The copy, the facts and the three depth stops are arrays at the top of `Diving.astro`. The section is worded as "coming soon" because the instructor certification is still in progress. Confirm the certification agency, course levels, depths, season and prices with the client before going live.
+- `src/scripts/dive.ts` drives the water level, the depth gauge and the diver from the scroll position. `src/scripts/sea/` draws the fish, turtle, jellyfish and bubbles on a canvas, and is loaded only when the section comes near.
+- "Register your interest" jumps to the contact form and selects "Scuba diving (coming soon)".
+- The water uses the brand blue scale. The illustrations use the brand book's supplementary colours (cream, light blue, olive, sage, brown) plus the yellow accent. The logo is not used in the scene, because the brand book does not allow it to be rotated, recoloured or given effects.
+- With `prefers-reduced-motion` the water moves with the page and the sea life is drawn once, without animation. Without JavaScript the section is a plain blue section.
 
 ## Data attribution
 

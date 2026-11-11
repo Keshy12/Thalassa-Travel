@@ -1,0 +1,1118 @@
+---
+import Icon from './Icon.astro';
+
+const facts = [
+  { value: '30 m', label: 'visibility on a clear day' },
+  { value: '26 °C', label: 'sea in high summer' },
+  { value: 'May–Oct', label: 'diving season' },
+];
+
+const stops = [
+  {
+    depth: 5,
+    kicker: 'No experience needed',
+    title: 'First breaths',
+    text: 'A try dive in a shallow, sheltered bay with your instructor at your side the whole time. One morning is enough to find out whether diving is for you.',
+    meta: ['Half a day', 'One-to-one'],
+  },
+  {
+    depth: 18,
+    kicker: 'Your first certification',
+    title: 'Open Water course',
+    text: 'Theory, shallow-water practice and four dives in the open sea, spread over a few days of your journey. You go home certified to dive to 18 metres anywhere in the world.',
+    meta: ['3 to 4 days', 'Certified to 18 m'],
+  },
+  {
+    depth: 30,
+    kicker: 'For certified divers',
+    title: 'Deeper dives',
+    text: 'Walls, caves and reefs beyond the beginner limit. Advanced training takes divers who already hold a certification down to 30 metres.',
+    meta: ['Advanced level', 'Down to 30 m'],
+  },
+];
+
+const life = ['Loggerhead turtles', 'Octopus', 'Dusky groupers', 'Moray eels', 'Posidonia meadows', 'Sea caves'];
+
+const PERIOD = 1440;
+const n1 = (v: number) => Number(v.toFixed(1));
+
+function wave(height: number, mid: number, parts: [number, number, number][]) {
+  const pts: [number, number][] = [];
+  for (let x = 0; x <= PERIOD * 2; x += 30) {
+    pts.push([x, parts.reduce((sum, [amp, count, phase]) => sum + amp * Math.sin((x / PERIOD) * Math.PI * 2 * count + phase), mid)]);
+  }
+  let crest = `M0 ${n1(pts[0][1])}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [x, y] = pts[i];
+    const [nx, ny] = pts[i + 1];
+    crest += `Q${x} ${n1(y)} ${(x + nx) / 2} ${n1((y + ny) / 2)}`;
+  }
+  const [lx, ly] = pts[pts.length - 1];
+  crest += `L${lx} ${n1(ly)}`;
+  return { height, crest, fill: `${crest}L${lx} ${height}L0 ${height}Z` };
+}
+
+const tint = (...stops: [offset: number, color: string, opacity: number][]) => stops;
+const waves = [
+  { name: 'back', ...wave(64, 20, [[10, 3, 0.4], [5, 5, 1.9]]), stops: tint([0, '#c4d8e2', 0.55], [1, '#c4d8e2', 0]) },
+  { name: 'mid', ...wave(64, 31, [[9, 4, 2.2], [4, 7, 0.3]]), stops: tint([0, '#8db8d2', 0.7], [1, '#8db8d2', 0]) },
+  { name: 'front', ...wave(64, 43, [[8, 2, 1.1], [5, 6, 2.6]]), stops: tint([0, '#c4d8e2', 0.85], [0.55, '#c4d8e2', 0.8], [1, '#8db8d2', 0.72]) },
+];
+
+const rays = [
+  { x: 6, w: 9, r: -20, d: 0 },
+  { x: 24, w: 15, r: -17, d: -3.4 },
+  { x: 43, w: 8, r: -15, d: -6.1 },
+  { x: 58, w: 18, r: -13, d: -1.7 },
+  { x: 79, w: 10, r: -11, d: -4.8 },
+  { x: 94, w: 14, r: -9, d: -7.3 },
+];
+
+function blade(x: number, base: number, h: number, bend: number, w: number) {
+  return `M${n1(x)} ${base}Q${n1(x + bend * 0.35)} ${n1(base - h * 0.62)} ${n1(x + bend)} ${n1(base - h)}Q${n1(x + bend * 0.5 + w)} ${n1(base - h * 0.55)} ${n1(x + w)} ${base}Z`;
+}
+
+function tuft(x: number, base: number, h: number, count: number, seed: number) {
+  let d = '';
+  for (let i = 0; i < count; i++) {
+    const t = count > 1 ? i / (count - 1) : 0.5;
+    const jitter = Math.sin(seed * 12.9898 + i * 78.233) * 0.5 + 0.5;
+    d += blade(x + (t - 0.5) * count * 7, base, h * (0.55 + jitter * 0.45), (t - 0.5) * h * 0.5 + (jitter - 0.5) * 14, 6);
+  }
+  return d;
+}
+
+function star(cx: number, cy: number, outer: number, inner: number, turn: number) {
+  let d = '';
+  for (let i = 0; i < 10; i++) {
+    const a = turn + (i * Math.PI) / 5;
+    const r = i % 2 ? inner : outer;
+    d += `${i ? 'L' : 'M'}${n1(cx + Math.cos(a) * r)} ${n1(cy + Math.sin(a) * r)}`;
+  }
+  return `${d}Z`;
+}
+
+const meadow = [
+  { x: 96, base: 262, h: 86, n: 7, tone: 'far' },
+  { x: 318, base: 250, h: 64, n: 6, tone: 'far' },
+  { x: 452, base: 258, h: 92, n: 8, tone: 'near' },
+  { x: 742, base: 236, h: 70, n: 6, tone: 'far' },
+  { x: 1068, base: 240, h: 96, n: 8, tone: 'near' },
+  { x: 1216, base: 254, h: 60, n: 6, tone: 'far' },
+  { x: 1356, base: 244, h: 88, n: 7, tone: 'near' },
+];
+
+const kelp = [
+  { d: 'M54 340C40 296 76 262 58 214C46 182 70 156 60 122', w: 13 },
+  { d: 'M104 340C120 300 88 270 104 226C114 198 96 178 104 150', w: 11 },
+  { d: 'M158 340C146 306 170 284 158 250C150 226 164 210 160 190', w: 9 },
+  { d: 'M1298 340C1312 302 1282 274 1296 232C1306 202 1288 180 1296 148', w: 11 },
+  { d: 'M1352 340C1338 298 1372 262 1356 216C1344 184 1366 160 1358 118', w: 13 },
+  { d: 'M1404 340C1416 308 1394 286 1404 252C1410 230 1398 214 1402 196', w: 9 },
+];
+---
+
+<section class="dive" aria-labelledby="dive-title" data-dive>
+  <div class="dive__tank" aria-hidden="true" data-dive-tank>
+    <div class="dive__sea" data-dive-sea>
+      {
+        waves.map((w) => (
+          <svg class:list={['dive__wave', `dive__wave--${w.name}`]} viewBox={`0 0 ${PERIOD * 2} ${w.height}`} preserveAspectRatio="none" focusable="false">
+            <defs>
+              <linearGradient id={`dive-wave-${w.name}`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={w.height}>
+                {w.stops.map(([offset, color, opacity]) => <stop offset={offset} stop-color={color} stop-opacity={opacity} />)}
+              </linearGradient>
+            </defs>
+            <path d={w.fill} fill={`url(#dive-wave-${w.name})`} />
+            <path class="dive__wave-crest" d={w.crest} />
+          </svg>
+        ))
+      }
+      <div class="dive__water"></div>
+      <div class="dive__water dive__water--deep" data-dive-deep></div>
+      <div class="dive__light" data-dive-light>
+        <span class="dive__glow"></span>
+        {rays.map((r) => <i style={`--x:${r.x}%;--w:${r.w}%;--r:${r.r}deg;--d:${r.d}s`} />)}
+      </div>
+      <canvas class="dive__canvas" data-dive-canvas></canvas>
+      <div class="dive__scrim"></div>
+    </div>
+    <div class="dive__gauge">
+      <Icon name="arrowDown" size={14} />
+      <span>Depth</span>
+      <strong data-dive-depth>0 m</strong>
+    </div>
+  </div>
+
+  <div class="dive__body" id="diving" data-dive-body>
+    <svg class="dive__shore" viewBox={`0 0 ${PERIOD} 64`} preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d={waves[2].fill}></path>
+    </svg>
+
+    <div class="container dive__layout">
+      <header class="dive__intro" data-dive-intro data-reveal>
+        <span class="eyebrow dive__eyebrow">Coming soon · Scuba diving</span>
+        <h2 id="dive-title">Thalassa means sea. Soon we will take you beneath it.</h2>
+        <p class="dive__lead">
+          We are working towards our scuba instructor certification. Once it is complete, we will teach diving ourselves, so
+          your journey through Greece can continue below the surface of the Ionian Sea.
+        </p>
+        <ul class="dive__facts">
+          {
+            facts.map((f) => (
+              <li>
+                <strong>{f.value}</strong>
+                {f.label}
+              </li>
+            ))
+          }
+        </ul>
+      </header>
+
+      <div class="dive__buddy" aria-hidden="true">
+        <div class="dive__buddy-pin" data-dive-buddy>
+          <svg class="dive__diver" viewBox="0 0 640 360" focusable="false">
+            <defs>
+              <linearGradient id="dive-beam" x1="1" y1="0" x2="0" y2="0">
+                <stop offset="0" stop-color="#fbedc6" stop-opacity="0.55"></stop>
+                <stop offset="1" stop-color="#fbedc6" stop-opacity="0"></stop>
+              </linearGradient>
+            </defs>
+            <path class="dive__beam" d="M112 250L-34 208L-34 322Z" fill="url(#dive-beam)" data-dive-beam></path>
+
+            <g class="dive__leg dive__leg--far" data-dive-kick>
+              <path d="M338 184Q412 170 486 184" fill="none" stroke="#8db8d2" stroke-width="25" stroke-linecap="round"></path>
+              <g class="dive__fin" data-dive-kick>
+                <path d="M474 170L600 148Q616 183 601 216L478 198Z" fill="#d9a21b"></path>
+                <path d="M476 172h22v24h-22z" fill="#002a43"></path>
+              </g>
+            </g>
+
+            <rect x="196" y="106" width="152" height="44" rx="22" fill="#f2c14e"></rect>
+            <rect x="206" y="112" width="132" height="10" rx="5" fill="#fbedc6" opacity="0.6"></rect>
+            <rect x="320" y="106" width="12" height="44" fill="#d9a21b"></rect>
+            <rect x="176" y="117" width="26" height="22" rx="6" fill="#3d5466"></rect>
+            <circle cx="180" cy="128" r="10" fill="#6b7f8e"></circle>
+
+            <path d="M190 186H338" fill="none" stroke="#f2ebe2" stroke-width="64" stroke-linecap="round"></path>
+            <path d="M298 156Q352 152 366 186Q352 220 298 216Z" fill="#c4d8e2"></path>
+            <path d="M198 152H292Q308 186 292 220H198Q186 186 198 152Z" fill="#002a43"></path>
+            <path d="M292 152Q308 186 292 220" fill="none" stroke="#f2c14e" stroke-width="4" stroke-linecap="round"></path>
+            <path d="M226 104V156M286 104V156" fill="none" stroke="#002a43" stroke-width="12"></path>
+
+            <circle cx="150" cy="186" r="32" fill="#f2ebe2"></circle>
+            <path d="M168 160Q190 176 186 206Q176 216 164 214Z" fill="#c4d8e2"></path>
+            <g transform="rotate(-10 128 180)">
+              <rect x="108" y="164" width="40" height="30" rx="10" fill="#002a43"></rect>
+              <rect x="113" y="169" width="30" height="20" rx="6" fill="#c4d8e2"></rect>
+              <path d="M117 185L129 172" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.8"></path>
+              <path d="M148 174Q170 166 182 174" fill="none" stroke="#002a43" stroke-width="6" stroke-linecap="round"></path>
+            </g>
+            <path d="M130 214C160 240 204 228 204 186C204 160 194 140 184 132" fill="none" stroke="#3d5466" stroke-width="7" stroke-linecap="round"></path>
+            <circle cx="124" cy="208" r="13" fill="#3d5466"></circle>
+            <circle cx="122" cy="208" r="6" fill="#6b7f8e"></circle>
+
+            <path d="M212 204Q190 252 136 246" fill="none" stroke="#dfeaf0" stroke-width="23" stroke-linecap="round"></path>
+            <circle cx="134" cy="246" r="13" fill="#002a43"></circle>
+            <rect x="104" y="238" width="38" height="17" rx="6" fill="#f2c14e" transform="rotate(-6 123 246)"></rect>
+            <rect x="100" y="239" width="9" height="17" rx="3" fill="#002a43" transform="rotate(-6 123 246)"></rect>
+
+            <g class="dive__leg dive__leg--near" data-dive-kick>
+              <path d="M338 188Q414 204 488 188" fill="none" stroke="#f2ebe2" stroke-width="28" stroke-linecap="round"></path>
+              <path d="M372 180Q414 190 452 180" fill="none" stroke="#c4d8e2" stroke-width="6" stroke-linecap="round"></path>
+              <g class="dive__fin" data-dive-kick>
+                <path d="M476 174L604 158Q620 193 604 226L480 204Z" fill="#f2c14e"></path>
+                <path d="M506 176L596 172M506 189L600 193M506 200L596 212" fill="none" stroke="#d9a21b" stroke-width="3" stroke-linecap="round"></path>
+                <path d="M478 174h24v30h-24z" fill="#002a43"></path>
+              </g>
+            </g>
+
+            <g class="dive__breath">
+              <circle cx="112" cy="196" r="5"></circle>
+              <circle cx="104" cy="190" r="8"></circle>
+              <circle cx="118" cy="186" r="4"></circle>
+              <circle cx="108" cy="182" r="6"></circle>
+              <circle cx="116" cy="176" r="3.5"></circle>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <ol class="dive__stops">
+        {
+          stops.map((s) => (
+            <li class="dive__stop" data-depth={s.depth} data-reveal>
+              <span class="dive__node" aria-hidden="true" />
+              <article class="dive__card">
+                <p class="dive__depth">
+                  <strong>{s.depth}</strong>
+                  <span>metres</span>
+                </p>
+                <div class="dive__card-text">
+                  <p class="dive__kicker">{s.kicker}</p>
+                  <h3>{s.title}</h3>
+                  <p>{s.text}</p>
+                  <ul class="dive__meta">
+                    {s.meta.map((m) => (
+                      <li>{m}</li>
+                    ))}
+                  </ul>
+                </div>
+              </article>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+
+    <div class="container dive__end">
+      <div class="dive__life" data-reveal>
+        <p class="dive__label">Down here you may meet</p>
+        <ul class="dive__tags">
+          {life.map((l) => <li>{l}</li>)}
+        </ul>
+      </div>
+
+      <div class="dive__cta" data-reveal>
+        <h3>Be among the first to dive with us</h3>
+        <p>Leave your details and we will write to you as soon as the first courses have dates.</p>
+        <a class="btn btn--primary" href="#contact" data-journey="diving">
+          Register your interest
+          <Icon name="arrow" size={18} />
+        </a>
+        <p class="dive__note">
+          Diving courses are in preparation. Dates and prices will follow once our instructor certification is complete.
+        </p>
+      </div>
+    </div>
+
+    <div class="dive__seabed" aria-hidden="true" data-depth="32">
+      <svg viewBox="0 0 1440 340" preserveAspectRatio="xMidYMax slice" focusable="false">
+        <path class="dive__ridge dive__ridge--back" d="M0 214C150 178 330 206 520 196C720 186 900 150 1120 176C1260 192 1370 184 1440 172V340H0Z"></path>
+        <path class="dive__rim" d="M0 214C150 178 330 206 520 196C720 186 900 150 1120 176C1260 192 1370 184 1440 172"></path>
+
+        {
+          meadow
+            .filter((m) => m.tone === 'far')
+            .map((m, i) => <path class="dive__weed dive__weed--far" d={tuft(m.x, m.base, m.h, m.n, i + 1)} style={`--d:${-i * 1.3}s`} />)
+        }
+
+        <path class="dive__ridge dive__ridge--mid" d="M0 248C140 214 300 238 470 250C640 262 760 224 900 220C1050 216 1190 252 1310 244C1380 240 1420 228 1440 224V340H0Z"></path>
+        <path class="dive__rim" d="M0 248C140 214 300 238 470 250C640 262 760 224 900 220C1050 216 1190 252 1310 244C1380 240 1420 228 1440 224"></path>
+
+        <g class="dive__stone" transform="translate(884 226) rotate(-8)">
+          <path d="M-136 -38h14v76h-14z"></path>
+          <path d="M-122 -34L-108 -27V27L-122 34Z"></path>
+          <rect x="-108" y="-27" width="100" height="54" rx="3"></rect>
+          <rect x="0" y="-27" width="94" height="54" rx="3"></rect>
+          <ellipse cx="94" cy="0" rx="8" ry="27"></ellipse>
+          <path class="dive__flute" d="M-104 -14H-12M-104 0H-12M-104 14H-12M4 -14H88M4 0H88M4 14H88"></path>
+        </g>
+        <g class="dive__stone" transform="translate(1034 236)">
+          <rect x="-27" y="-42" width="54" height="50" rx="2"></rect>
+          <ellipse cx="0" cy="-42" rx="27" ry="7"></ellipse>
+          <path class="dive__flute" d="M-14 -34V6M0 -34V6M14 -34V6"></path>
+        </g>
+
+        <path class="dive__rock" d="M196 268C204 238 246 226 276 244C296 256 304 274 304 286H190Z"></path>
+        <path class="dive__rock" d="M1132 262C1142 240 1176 234 1198 250C1212 260 1216 272 1216 282H1126Z"></path>
+
+        {
+          meadow
+            .filter((m) => m.tone === 'near')
+            .map((m, i) => <path class="dive__weed dive__weed--near" d={tuft(m.x, m.base + 30, m.h, m.n, i + 5)} style={`--d:${-i * 1.7 - 0.6}s`} />)
+        }
+
+        <g transform="translate(586 258) rotate(64)">
+          <path class="dive__clay-dark" d="M-9 -52C-32 -56 -38 -30 -27 -18M9 -52C32 -56 38 -30 27 -18" fill="none" stroke-width="7" stroke-linecap="round"></path>
+          <path class="dive__clay" d="M-11 -62H11L9 -50C31 -40 39 -8 31 22C25 44 10 58 0 66C-10 58 -25 44 -31 22C-39 -8 -31 -40 -9 -50Z"></path>
+          <path class="dive__clay-dark" d="M-27 -6C-10 2 10 2 27 -6M-30 12C-10 22 10 22 30 12" fill="none" stroke-width="3"></path>
+          <rect class="dive__clay" x="-15" y="-70" width="30" height="10" rx="4"></rect>
+          <ellipse cx="0" cy="-69" rx="10" ry="4" fill="#001b2e"></ellipse>
+        </g>
+        <g class="dive__octo" transform="translate(-3 -13)">
+          <path d="M650 244C668 252 676 268 698 266C712 264 716 252 708 248" fill="none" stroke-width="7" stroke-linecap="round"></path>
+          <path d="M650 248C660 266 684 280 706 282" fill="none" stroke-width="6" stroke-linecap="round"></path>
+          <ellipse cx="652" cy="238" rx="15" ry="13"></ellipse>
+          <circle class="dive__octo-eye" cx="655" cy="233" r="4"></circle>
+          <circle class="dive__octo-eye" cx="664" cy="239" r="3.4"></circle>
+          <circle cx="656" cy="233.6" r="1.7" fill="#001b2e"></circle>
+          <circle cx="664.8" cy="239.6" r="1.5" fill="#001b2e"></circle>
+        </g>
+
+        <path class="dive__ridge dive__ridge--front" d="M0 286C130 262 270 274 400 290C540 308 650 280 780 274C920 268 1030 300 1160 294C1280 288 1370 266 1440 272V340H0Z"></path>
+        <path class="dive__rim" d="M0 286C130 262 270 274 400 290C540 308 650 280 780 274C920 268 1030 300 1160 294C1280 288 1370 266 1440 272"></path>
+
+        <path class="dive__starfish" d={star(742, 296, 17, 7, -0.3)}></path>
+        <path class="dive__starfish" d={star(368, 306, 11, 4.6, 0.5)}></path>
+        <path class="dive__pebble" d="M512 310a9 4 0 1 0 18 0a9 4 0 1 0 -18 0M930 306a7 3 0 1 0 14 0a7 3 0 1 0 -14 0M1250 302a10 4 0 1 0 20 0a10 4 0 1 0 -20 0M246 300a6 3 0 1 0 12 0a6 3 0 1 0 -12 0"></path>
+
+        {kelp.map((k, i) => <path class="dive__kelp" d={k.d} stroke-width={k.w} style={`--d:${-i * 0.9}s`} />)}
+
+        <g class="dive__fizz" transform="translate(-3 -13)">
+          <circle cx="664" cy="224" r="3"></circle>
+          <circle cx="672" cy="220" r="2"></circle>
+          <circle cx="658" cy="218" r="2.4"></circle>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<script>
+  import '../scripts/dive';
+</script>
+
+<style>
+  .dive {
+    --dive-rest: 70px;
+    --dive-floor: var(--blue-950);
+    position: relative;
+    background: linear-gradient(180deg, var(--blue-500) 0, var(--blue-600) 260px, var(--blue-700) 34%, var(--blue-800) 100%);
+    color: var(--white);
+  }
+
+  .dive.is-live {
+    margin-top: -100vh;
+    margin-top: -100lvh;
+    background: none;
+    pointer-events: none;
+  }
+
+  .dive.is-live::before {
+    content: '';
+    position: absolute;
+    inset: 100vh 0 0;
+    inset: 100lvh 0 0;
+    background: var(--blue-800);
+  }
+
+  .dive__tank {
+    display: none;
+  }
+
+  .dive.is-live .dive__tank {
+    position: sticky;
+    top: 0;
+    display: block;
+    height: 100vh;
+    height: 100lvh;
+    overflow: hidden;
+  }
+
+  .dive__sea {
+    position: absolute;
+    inset: 0;
+    transform: translate3d(0, 110vh, 0);
+    will-change: transform;
+  }
+
+  .dive__wave {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    width: max(200%, 2880px);
+    max-width: none;
+    height: 64px;
+    animation: dive-drift 19s linear infinite;
+  }
+
+  .dive__wave--mid {
+    animation-duration: 13s;
+    animation-direction: reverse;
+  }
+
+  .dive__wave--front {
+    animation-duration: 9s;
+  }
+
+  .dive__wave-crest {
+    fill: none;
+    stroke: var(--white);
+    stroke-width: 2;
+    stroke-linecap: round;
+    opacity: 0.55;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .dive__wave--front .dive__wave-crest {
+    opacity: 0.85;
+  }
+
+  @keyframes dive-drift {
+    to {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  .dive__water {
+    position: absolute;
+    inset: 0 0 calc(var(--dive-rest) * -1 - 2px);
+    background: linear-gradient(
+      180deg,
+      rgb(141 184 210 / 0.72) 0,
+      rgb(92 157 196 / 0.9) 90px,
+      var(--blue-500) 210px,
+      var(--blue-600) 52%,
+      var(--blue-700) 100%
+    );
+  }
+
+  .dive__water--deep {
+    background: linear-gradient(180deg, var(--blue-600) 0%, var(--blue-700) 42%, var(--blue-800) 100%);
+    opacity: 0;
+  }
+
+  .dive__light {
+    position: absolute;
+    inset: 0 0 calc(var(--dive-rest) * -1);
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 200px);
+    mask-image: linear-gradient(180deg, transparent 0, #000 200px);
+  }
+
+  .dive__glow {
+    position: absolute;
+    top: -34%;
+    right: -12%;
+    width: 78%;
+    height: 96%;
+    background: radial-gradient(closest-side, rgb(255 255 255 / 0.3), rgb(255 255 255 / 0));
+  }
+
+  .dive__light i {
+    position: absolute;
+    top: -6%;
+    left: var(--x);
+    width: var(--w);
+    height: 112%;
+    background: linear-gradient(90deg, rgb(255 255 255 / 0), rgb(255 255 255 / 0.3) 38%, rgb(255 255 255 / 0.3) 62%, rgb(255 255 255 / 0));
+    opacity: 0.75;
+    transform: skewX(var(--r));
+    transform-origin: 50% 0;
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.5) 42%, transparent 84%);
+    mask-image: linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.5) 42%, transparent 84%);
+    animation: dive-ray 8s ease-in-out var(--d) infinite alternate;
+  }
+
+  @keyframes dive-ray {
+    from {
+      opacity: 0.3;
+      transform: skewX(calc(var(--r) - 2.5deg));
+    }
+    to {
+      opacity: 1;
+      transform: skewX(calc(var(--r) + 2.5deg));
+    }
+  }
+
+  .dive__canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: calc(100% + var(--dive-rest));
+    max-width: none;
+  }
+
+  .dive__scrim {
+    position: absolute;
+    inset: 0 0 calc(var(--dive-rest) * -1);
+    background: linear-gradient(90deg, rgb(0 42 67 / 0.52) 0%, rgb(0 42 67 / 0.34) 36%, rgb(0 42 67 / 0) 64%);
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 260px);
+    mask-image: linear-gradient(180deg, transparent 0, #000 260px);
+  }
+
+  .dive__gauge {
+    position: absolute;
+    right: var(--gutter);
+    bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px 7px 10px;
+    border: 1px solid rgb(255 255 255 / 0.14);
+    border-radius: var(--radius-pill);
+    background: rgb(2 34 56 / 0.55);
+    backdrop-filter: blur(8px);
+    color: rgb(255 255 255 / 0.78);
+    font-size: 0.74rem;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+
+  .dive__gauge :global(svg) {
+    color: var(--sun-500);
+  }
+
+  .dive__gauge strong {
+    min-width: 3.2em;
+    color: var(--white);
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dive.is-under .dive__gauge {
+    opacity: 1;
+  }
+
+  .dive__body {
+    position: relative;
+    z-index: 1;
+    padding-top: var(--section-y);
+    pointer-events: auto;
+  }
+
+  .dive__shore {
+    position: absolute;
+    bottom: calc(100% - 1px);
+    left: 0;
+    width: 100%;
+    height: 44px;
+    fill: var(--blue-500);
+  }
+
+  .dive.is-live .dive__shore {
+    display: none;
+  }
+
+  .dive__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 640fr) minmax(0, 520fr);
+    grid-template-areas:
+      'intro buddy'
+      'stops buddy';
+    column-gap: clamp(32px, 5vw, 88px);
+  }
+
+  .dive__intro {
+    display: grid;
+    grid-area: intro;
+    gap: 18px;
+  }
+
+  .dive__eyebrow {
+    color: var(--sun-300);
+  }
+
+  .dive h2 {
+    color: var(--white);
+    font-size: var(--step-4);
+    text-shadow: 0 2px 30px rgb(0 27 46 / 0.35);
+  }
+
+  .dive__lead {
+    color: rgb(255 255 255 / 0.86);
+    font-size: var(--step-1);
+    line-height: 1.6;
+  }
+
+  .dive__facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 38px;
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+    color: rgb(255 255 255 / 0.78);
+    font-size: 0.9rem;
+  }
+
+  .dive__facts strong {
+    display: block;
+    color: var(--white);
+    font-family: var(--font-display);
+    font-size: 2.2rem;
+    font-weight: 400;
+    line-height: 1.1;
+  }
+
+  .dive__buddy {
+    grid-area: buddy;
+    min-width: 0;
+  }
+
+  .dive__buddy-pin {
+    position: sticky;
+    top: max(128px, calc(50vh - 190px));
+    transform: rotate(var(--tilt, 0deg));
+  }
+
+  .dive__diver {
+    width: min(100%, 560px);
+    margin-left: auto;
+    overflow: visible;
+    animation: dive-bob 5.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes dive-bob {
+    from {
+      transform: translate3d(0, -9px, 0) rotate(-5deg);
+    }
+    to {
+      transform: translate3d(0, 9px, 0) rotate(-8deg);
+    }
+  }
+
+  .dive__beam {
+    opacity: 0.25;
+  }
+
+  .dive__leg {
+    transform-origin: 338px 186px;
+    animation: dive-kick 1.7s ease-in-out infinite alternate;
+  }
+
+  .dive__leg--far {
+    animation-direction: alternate-reverse;
+  }
+
+  .dive__fin {
+    transform-origin: 482px 187px;
+    animation: dive-flex 1.7s ease-in-out -0.5s infinite alternate;
+  }
+
+  .dive__leg--far .dive__fin {
+    animation-direction: alternate-reverse;
+  }
+
+  @keyframes dive-kick {
+    from {
+      transform: rotate(-7deg);
+    }
+    to {
+      transform: rotate(7deg);
+    }
+  }
+
+  @keyframes dive-flex {
+    from {
+      transform: rotate(-11deg);
+    }
+    to {
+      transform: rotate(11deg);
+    }
+  }
+
+  .dive__breath circle {
+    fill: rgb(255 255 255 / 0.16);
+    stroke: rgb(255 255 255 / 0.8);
+    stroke-width: 1.6;
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: dive-breath 4.6s ease-out infinite;
+  }
+
+  .dive__breath circle:nth-child(2) {
+    animation-delay: 0.18s;
+  }
+
+  .dive__breath circle:nth-child(3) {
+    animation-delay: 0.34s;
+  }
+
+  .dive__breath circle:nth-child(4) {
+    animation-delay: 0.52s;
+  }
+
+  .dive__breath circle:nth-child(5) {
+    animation-delay: 0.7s;
+  }
+
+  @keyframes dive-breath {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 0, 0) scale(0.4);
+    }
+    8% {
+      opacity: 0.95;
+    }
+    46% {
+      opacity: 0.7;
+    }
+    62%,
+    100% {
+      opacity: 0;
+      transform: translate3d(-14px, -210px, 0) scale(1.5);
+    }
+  }
+
+  .dive__stops {
+    position: relative;
+    display: grid;
+    grid-area: stops;
+    gap: clamp(36px, 5.4vw, 84px);
+    margin: clamp(56px, 8vw, 116px) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dive__stops::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 8px;
+    border-left: 2px dashed rgb(255 255 255 / 0.5);
+  }
+
+  .dive__stop {
+    position: relative;
+    padding-left: 46px;
+  }
+
+  .dive__node {
+    position: absolute;
+    top: 38px;
+    left: 0;
+    width: 18px;
+    height: 18px;
+    border: 2.5px solid var(--white);
+    border-radius: 50%;
+    background: var(--sun-500);
+    box-shadow: 0 2px 10px rgb(0 27 46 / 0.5);
+  }
+
+  .dive__card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 6px clamp(18px, 2.6vw, 34px);
+    padding: clamp(22px, 2.6vw, 32px);
+    border: 1px solid rgb(255 255 255 / 0.14);
+    border-radius: var(--radius-l);
+    background: rgb(2 34 56 / 0.5);
+    box-shadow: 0 30px 60px -36px rgb(0 20 35 / 0.7);
+  }
+
+  .dive__depth {
+    display: grid;
+    justify-items: center;
+    min-width: 2.2em;
+    color: var(--sun-300);
+    font-size: 0.66rem;
+    font-weight: 650;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .dive__depth strong {
+    color: var(--white);
+    font-family: var(--font-display);
+    font-size: clamp(2.6rem, 2rem + 2vw, 3.6rem);
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1;
+  }
+
+  .dive__card-text {
+    display: grid;
+    gap: 8px;
+  }
+
+  .dive__kicker,
+  .dive__label {
+    color: var(--sun-300);
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .dive__card h3 {
+    color: var(--white);
+    font-size: var(--step-2);
+  }
+
+  .dive__card-text > p:not(.dive__kicker) {
+    color: rgb(255 255 255 / 0.8);
+    font-size: 0.95rem;
+  }
+
+  .dive__meta,
+  .dive__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dive__meta li,
+  .dive__tags li {
+    padding: 5px 12px;
+    border: 1px solid rgb(255 255 255 / 0.28);
+    border-radius: var(--radius-pill);
+    color: var(--white);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .dive__end {
+    display: grid;
+    gap: clamp(48px, 6vw, 84px);
+    margin-top: clamp(64px, 8vw, 116px);
+  }
+
+  .dive__life {
+    display: grid;
+    gap: 12px;
+    max-width: 640px;
+  }
+
+  .dive__tags li {
+    padding: 7px 14px;
+    background: rgb(2 34 56 / 0.4);
+    font-size: 0.82rem;
+  }
+
+  .dive__cta {
+    display: grid;
+    justify-items: start;
+    gap: 16px;
+    max-width: 640px;
+  }
+
+  .dive__cta h3 {
+    color: var(--white);
+    font-size: var(--step-3);
+  }
+
+  .dive__cta > p {
+    color: rgb(255 255 255 / 0.84);
+    font-size: var(--step-1);
+    line-height: 1.6;
+  }
+
+  .dive__cta .btn {
+    margin-top: 8px;
+  }
+
+  .dive__cta .dive__note {
+    color: rgb(255 255 255 / 0.62);
+    font-size: 0.85rem;
+    line-height: 1.55;
+  }
+
+  .dive__seabed {
+    position: relative;
+    height: max(200px, 23.62vw);
+    margin-top: clamp(24px, 4vw, 56px);
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .dive__seabed svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+  }
+
+  .dive__ridge--back {
+    fill: #012e4a;
+  }
+
+  .dive__ridge--mid {
+    fill: #00243b;
+  }
+
+  .dive__ridge--front {
+    fill: var(--dive-floor);
+  }
+
+  .dive__rim {
+    fill: none;
+    stroke: rgb(196 216 226 / 0.24);
+    stroke-width: 2;
+  }
+
+  .dive__stone {
+    fill: #9fb4c2;
+  }
+
+  .dive__stone ellipse {
+    fill: #bccbd5;
+  }
+
+  .dive__flute {
+    fill: none;
+    stroke: #5d7f96;
+    stroke-width: 3;
+  }
+
+  .dive__rock {
+    fill: var(--dive-floor);
+    stroke: rgb(196 216 226 / 0.16);
+    stroke-width: 2;
+  }
+
+  .dive__weed {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: dive-sway 6.5s ease-in-out var(--d) infinite alternate;
+  }
+
+  .dive__weed--far {
+    fill: #636b2f;
+    opacity: 0.6;
+  }
+
+  .dive__weed--near {
+    fill: #98a869;
+    opacity: 0.72;
+  }
+
+  .dive__kelp {
+    fill: none;
+    stroke: var(--dive-floor);
+    stroke-linecap: round;
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: dive-sway 7.5s ease-in-out var(--d) infinite alternate;
+  }
+
+  @keyframes dive-sway {
+    from {
+      transform: skewX(-7deg);
+    }
+    to {
+      transform: skewX(7deg);
+    }
+  }
+
+  .dive__clay {
+    fill: #a98b73;
+  }
+
+  .dive__clay-dark {
+    stroke: #6f4e37;
+  }
+
+  .dive__octo {
+    fill: #c9b29b;
+    stroke: #c9b29b;
+  }
+
+  .dive__octo ellipse,
+  .dive__octo circle {
+    stroke: none;
+  }
+
+  .dive__octo-eye {
+    fill: #f2ebe2;
+  }
+
+  .dive__starfish {
+    fill: var(--sun-500);
+    opacity: 0.9;
+  }
+
+  .dive__pebble {
+    fill: #f2ebe2;
+    opacity: 0.3;
+  }
+
+  .dive__fizz circle {
+    fill: none;
+    stroke: rgb(255 255 255 / 0.7);
+    stroke-width: 1.2;
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: dive-fizz 5.2s ease-out infinite;
+  }
+
+  .dive__fizz circle:nth-child(2) {
+    animation-delay: 1.4s;
+  }
+
+  .dive__fizz circle:nth-child(3) {
+    animation-delay: 3.1s;
+  }
+
+  @keyframes dive-fizz {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 0, 0);
+    }
+    10% {
+      opacity: 0.9;
+    }
+    100% {
+      opacity: 0;
+      transform: translate3d(6px, -150px, 0);
+    }
+  }
+
+  @media (max-width: 960px) {
+    .dive__layout {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas:
+        'intro'
+        'buddy'
+        'stops';
+    }
+
+    .dive__buddy {
+      margin-top: 36px;
+    }
+
+    .dive__buddy-pin {
+      position: static;
+    }
+
+    .dive__diver {
+      width: min(86%, 420px);
+      margin-inline: auto;
+    }
+
+    .dive__stops {
+      margin-top: 44px;
+    }
+
+    .dive__scrim {
+      background: rgb(0 42 67 / 0.4);
+    }
+
+    .dive__gauge {
+      display: none;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .dive__stop {
+      padding-left: 32px;
+    }
+
+    .dive__stops::before {
+      left: 6px;
+    }
+
+    .dive__node {
+      top: 30px;
+      width: 14px;
+      height: 14px;
+    }
+
+    .dive__card {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .dive__depth {
+      grid-auto-flow: column;
+      align-items: baseline;
+      justify-content: start;
+      gap: 8px;
+    }
+
+    .dive__facts strong {
+      font-size: 1.7rem;
+    }
+  }
+</style>
